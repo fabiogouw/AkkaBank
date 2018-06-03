@@ -10,11 +10,11 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 
 @Component
-public class StartupInit {
+public class AccountsInit {
     private final AccountBag _accountBag;
     private final ActorSystem _system;
 
-    public StartupInit(AccountBag accountBag, ActorSystem system) {
+    public AccountsInit(AccountBag accountBag, ActorSystem system) {
         _accountBag = accountBag;
         _system = system;
     }
@@ -24,7 +24,13 @@ public class StartupInit {
         Random rnd = new Random();
         for (int i = 1; i <= 1000; i++) {
             String id = String.valueOf(i);
-            ActorRef accountRef = _system.actorOf(AccountActor.props(id, 1000 * rnd.nextDouble()), id);
+            ActorRef loanAccountRef = null;
+            if(i % 2 == 0) {
+                double max = 1000 * rnd.nextDouble();
+                loanAccountRef = _system.actorOf(LoanAccountActor.props(id, max), "LOAN" + id);
+            }
+            double balance = 1000 * rnd.nextDouble();
+            ActorRef accountRef = _system.actorOf(AccountActor.props(id, balance, loanAccountRef), id);
             _accountBag.add(id , accountRef);
         }
     }
