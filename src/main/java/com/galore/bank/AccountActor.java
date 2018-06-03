@@ -16,15 +16,15 @@ public class AccountActor extends AbstractActor {
     }
 
     static class BalanceResponse {
-        private String _id;
+        private String _correlationId;
         private double _balance;
         
-        public BalanceResponse(String id, double balance) {
-            _id = id;
+        public BalanceResponse(String correlationId, double balance) {
+            _correlationId = correlationId;
             _balance = balance;
         }
-        public String getId() {
-            return _id;
+        public String getCorrelationId() {
+            return _correlationId;
         }
         public double getBalance() {
             return _balance;
@@ -32,15 +32,15 @@ public class AccountActor extends AbstractActor {
     }
 
     static class DepositRequest {
-        private String _id;
+        private String _correlationId;
         private double _amount;
         
-        public DepositRequest(String id, double amount) {
-            _id = id;
+        public DepositRequest(String correlationId, double amount) {
+            _correlationId = correlationId;
             _amount = amount;
         }
-        public String getId() {
-            return _id;
+        public String getCorrelationId() {
+            return _correlationId;
         }
         public double getAmount() {
             return _amount;
@@ -48,19 +48,36 @@ public class AccountActor extends AbstractActor {
     }
 
     static class DepositResponse {
+        private String _correlationId;
+        private double _currentBalance;
+        private Boolean _success;
+        public DepositResponse(String correlationId, double currentBalance, Boolean success) {
+            _correlationId = correlationId;
+            _currentBalance = currentBalance;
+            _success = success;
+        }
 
+        public String getCorrelationId() {
+            return _correlationId;
+        }
+        public double getCurrentBalance() {
+            return _currentBalance;
+        }        
+        public Boolean getSuccess() {
+            return _success;
+        }
     }
 
     static class WithdrawRequest {
-        private String _id;
+        private String _correlationId;
         private double _amount;
         
-        public WithdrawRequest(String id, double amount) {
-            _id = id;
+        public WithdrawRequest(String correlationId, double amount) {
+            _correlationId = correlationId;
             _amount = amount;
         }
-        public String getId() {
-            return _id;
+        public String getCorrelationId() {
+            return _correlationId;
         }
         public double getAmount() {
             return _amount;
@@ -68,16 +85,21 @@ public class AccountActor extends AbstractActor {
     }
 
     static class WithdrawResponse {
-        private String _id;
+        private String _correlationId;
+        private double _currentBalance;
         private Boolean _success;
-        public WithdrawResponse(String id, Boolean success) {
-            _id = id;
+        public WithdrawResponse(String correlationId, double currentBalance, Boolean success) {
+            _correlationId = correlationId;
+            _currentBalance = currentBalance;
             _success = success;
         }
 
-        public String getId() {
-            return _id;
+        public String getCorrelationId() {
+            return _correlationId;
         }
+        public double getCurrentBalance() {
+            return _currentBalance;
+        }         
         public Boolean getSuccess() {
             return _success;
         }
@@ -92,6 +114,7 @@ public class AccountActor extends AbstractActor {
     private double _balance;
     private ActorRef _loadAccountRef;
     private final Map<String, BalanceReservation> _balanceReservations = new HashMap<String, BalanceReservation>();
+    private final Map<String, ActorRef> _loanPaymentResponseTo = new HashMap<String, ActorRef>();
 
     public AccountActor(String id, double initialBalance, ActorRef loadAccountRef) {
         _id = id;
@@ -107,34 +130,45 @@ public class AccountActor extends AbstractActor {
                 getSender().tell(new BalanceResponse(_id, _balance), getSelf());
             })
             .match(DepositRequest.class, req -> {
-                _balance = _balance + req.getAmount();
-                getSender().tell(new DepositResponse(), getSelf());
+                if(_loadAccountRef != null) {
+                    _loanPaymentResponseTo.put(req.getCorrelationId(), getSender());
+                    _loadAccountRef.tell(new LoanAccountActor.LoanPaymentRequest(req.getCorrelationId(), req.getAmount()), getSelf());
+                }
+                else {
+                    _balance = _balance + req.getAmount();
+                    getSender().tell(new DepositResponse(req.getCorrelationId(), _balance, true), getSelf());
+                }
+            })
+            .match(LoanAccountActor.LoanPaymentResponse.class, res -> {
+                _balance = _balance + res.getRemainingAmount();
+                ActorRef responseTo = _loanPaymentResponseTo.remove(res.getCorrelationId());
+                responseTo.tell(new DepositResponse(res.getCorrelationId(), _balance, true), getSelf());
             })
             .match(WithdrawRequest.class, req -> {
-                _log.info("Withdraw request received");
+                _log.info("WithdrawRequest - {}", req.getAmount());
                 if(_balance >= req.getAmount()) {
                     _balance = _balance - req.getAmount();
-                    getSender().tell(new WithdrawResponse(req.getId(), true), getSelf());
+                    getSender().tell(new WithdrawResponse(req.getCorrelationId(), _balance, true), getSelf());
                 }
                 else if(_loadAccountRef != null) {
                     double loanRequired = req.getAmount() - _balance;
-                    _balanceReservations.put(req.getId(), new BalanceReservation(req.getId(), _balance, getSender()));
+                    _balanceReservations.put(req.getCorrelationId(), new BalanceReservation(req.getCorrelationId(), _balance, getSender()));
                     _balance = 0;
-                    _loadAccountRef.tell(new LoanAccountActor.LoanRequest(req.getId(), loanRequired), getSelf());
+                    _loadAccountRef.tell(new LoanAccountActor.LoanRequest(req.getCorrelationId(), loanRequired), getSelf());
                 }
                 else {
-                    getSender().tell(new WithdrawResponse(req.getId(), false), getSelf());
+                    getSender().tell(new WithdrawResponse(req.getCorrelationId(), _balance, false), getSelf());
                 }
             })
             .match(LoanAccountActor.LoanResponse.class, res -> {
                 _log.info("LoanAccountActor.LoanResponse - {}, {}", res.getSuccess(), res.getAmount());
                 BalanceReservation reservation = _balanceReservations.remove(res.getCorrelationId());
                 if(res.getSuccess()) {
-                    reservation.getOriginalRequester().tell(new WithdrawResponse(res.getCorrelationId(), true), getSelf());
+                    reservation.getOriginalRequester().tell(new WithdrawResponse(res.getCorrelationId(), _balance, true), getSelf());
                 }
                 else {                    
                     _balance = _balance + reservation.getAmount();
-                    reservation.getOriginalRequester().tell(new WithdrawResponse(res.getCorrelationId(), false), getSelf());
+                    reservation.getOriginalRequester().tell(new WithdrawResponse(res.getCorrelationId(), _balance, false), getSelf());
                 }
             })
             .build();
