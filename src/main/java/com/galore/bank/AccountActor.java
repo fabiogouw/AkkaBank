@@ -1,7 +1,9 @@
 package com.galore.bank;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
@@ -16,15 +18,10 @@ public class AccountActor extends AbstractActor {
     }
 
     static class BalanceResponse {
-        private String _correlationId;
         private double _balance;
         
-        public BalanceResponse(String correlationId, double balance) {
-            _correlationId = correlationId;
+        public BalanceResponse(double balance) {
             _balance = balance;
-        }
-        public String getCorrelationId() {
-            return _correlationId;
         }
         public double getBalance() {
             return _balance;
@@ -105,20 +102,22 @@ public class AccountActor extends AbstractActor {
         }
     }
 
-    static Props props(String id, double initialBalance, ActorRef loadAccountRef) {
-        return Props.create(AccountActor.class, id, initialBalance, loadAccountRef);
+    static Props props(String id, double initialBalance, Ledger ledger, ActorRef loadAccountRef) {
+        return Props.create(AccountActor.class, id, initialBalance, ledger, loadAccountRef);
     }
 
     private final LoggingAdapter _log;
+    private final Ledger _ledger;
     private String _id;
     private double _balance;
     private ActorRef _loadAccountRef;
     private final Map<String, BalanceReservation> _balanceReservations = new HashMap<String, BalanceReservation>();
     private final Map<String, ActorRef> _loanPaymentResponseTo = new HashMap<String, ActorRef>();
 
-    public AccountActor(String id, double initialBalance, ActorRef loadAccountRef) {
+    public AccountActor(String id, double initialBalance, Ledger ledger, ActorRef loadAccountRef) {
         _id = id;
         _balance = initialBalance;
+        _ledger = ledger;
         _loadAccountRef = loadAccountRef;
         _log = Logging.getLogger(getContext().getSystem(), this);
     }
@@ -127,16 +126,18 @@ public class AccountActor extends AbstractActor {
     public Receive createReceive() {
         return receiveBuilder()
             .match(BalanceRequest.class, req -> {
-                getSender().tell(new BalanceResponse(_id, _balance), getSelf());
+                getSender().tell(new BalanceResponse(_balance), getSelf());
             })
             .match(DepositRequest.class, req -> {
+                ActorRef respondTo = getSender();
                 if(_loadAccountRef != null) {
                     _loanPaymentResponseTo.put(req.getCorrelationId(), getSender());
                     _loadAccountRef.tell(new LoanAccountActor.LoanPaymentRequest(req.getCorrelationId(), req.getAmount()), getSelf());
                 }
                 else {
+                    _ledger.insert(_id, new Date(), UUID.randomUUID(), req.getAmount(), UUID.fromString(req.getCorrelationId()), "deposit", Ledger.EntryType.DEPOSIT.getValue());
                     _balance = _balance + req.getAmount();
-                    getSender().tell(new DepositResponse(req.getCorrelationId(), _balance, true), getSelf());
+                    respondTo.tell(new DepositResponse(req.getCorrelationId(), _balance, true), getSelf());
                 }
             })
             .match(LoanAccountActor.LoanPaymentResponse.class, res -> {
@@ -147,6 +148,7 @@ public class AccountActor extends AbstractActor {
             .match(WithdrawRequest.class, req -> {
                 _log.info("WithdrawRequest - {}", req.getAmount());
                 if(_balance >= req.getAmount()) {
+                    _ledger.insert(_id, new Date(), UUID.randomUUID(), req.getAmount(), UUID.fromString(req.getCorrelationId()), "deposit", Ledger.EntryType.WITHDRAW.getValue());
                     _balance = _balance - req.getAmount();
                     getSender().tell(new WithdrawResponse(req.getCorrelationId(), _balance, true), getSelf());
                 }

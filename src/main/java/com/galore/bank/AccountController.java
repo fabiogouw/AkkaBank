@@ -21,7 +21,7 @@ import scala.concurrent.duration.Duration;
 @RequestMapping("/accounts")
 public class AccountController {
 
-    private static final int TIMEOUT_IN_SECONDS = 2;
+    private static final int TIMEOUT_IN_SECONDS = 5;
     private final AccountBag _accountBag;
 
     public AccountController(AccountBag accountBag) {

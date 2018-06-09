@@ -19,4 +19,9 @@ public class AppConfig {
     public AccountBag accountBag() {
         return new AccountBag();
     }
+
+    @Bean
+    public Ledger ledger() {
+        return new Ledger();
+    }    
 }
