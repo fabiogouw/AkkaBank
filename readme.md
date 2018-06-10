@@ -6,3 +6,8 @@ It was developed using Visual Studio Code. To run, use the command below, replac
 ```bash
 mvn spring-boot:run -Dspring-boot.run.arguments=--cass.contactPoint=172.18.0.1,--cass.keyspace=ledger,--cass.username=xxx,--cass.password=xxx
 ```
+
+To build, run the following command:
+```bash
+mvn package dockerfile:build
+```
