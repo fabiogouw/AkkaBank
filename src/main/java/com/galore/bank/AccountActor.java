@@ -10,6 +10,7 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+import scala.Option;
 
 public class AccountActor extends AbstractActor {
 
@@ -120,6 +121,18 @@ public class AccountActor extends AbstractActor {
         _ledger = ledger;
         _loadAccountRef = loadAccountRef;
         _log = Logging.getLogger(getContext().getSystem(), this);
+    }
+
+    @Override
+    public void preStart() throws Exception {
+        super.preStart();
+        _balance += _ledger.getBalance(_id, new Date());
+    }
+
+    @Override
+    public void preRestart(Throwable reason, Option<Object> message) throws Exception {
+        super.preRestart(reason, message);
+        _balance += _ledger.getBalance(_id, new Date());
     }
 
     @Override

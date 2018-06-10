@@ -31,8 +31,7 @@ public class AccountsInit {
                 double max = 1000 * rnd.nextDouble();
                 loanAccountRef = _system.actorOf(LoanAccountActor.props(id, max), "LOAN" + id);
             }*/
-            double balance = 1000 * rnd.nextDouble();
-            ActorRef accountRef = _system.actorOf(AccountActor.props(id, balance, _ledger, loanAccountRef), id);
+            ActorRef accountRef = _system.actorOf(AccountActor.props(id, 0, _ledger, loanAccountRef), id);
             _accountBag.add(id , accountRef);
         }
     }

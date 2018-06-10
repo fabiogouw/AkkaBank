@@ -1,9 +1,12 @@
 package com.galore.bank;
 
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Cluster.Builder;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +29,15 @@ public class Ledger {
 
         public int getValue() {
             return _value;
+        }
+
+        public static EntryType from(int value) {
+            switch(value) {
+                case 1:
+                    return EntryType.DEPOSIT;
+                default:
+                    return EntryType.WITHDRAW;
+            }
         }
     }
 
@@ -61,19 +73,51 @@ public class Ledger {
             _session.execute(command);
         }
         finally {
-            close();
+            //close();
         }
     }
 
+    public double getBalance(String accountId, Date snapshotDate) {
+        double balance = 0;
+        connect();
+        StringBuilder sb = new StringBuilder("SELECT amount, entry_type FROM account_entries WHERE ");
+        sb.append("account_id ='").append(accountId).append("' ")
+            .append("ORDER BY entry_datetime DESC;");
+        ResultSet rs = _session.execute(sb.toString());
+        List<Row> rows = rs.all();
+        if(rows.size() > 0) {
+            _log.info("Restoring balance for {}", accountId);
+            for(Row r:rows) {
+                EntryType type = EntryType.from(r.getInt("entry_type"));
+                double amount = r.getFloat("amount");
+                if(type == EntryType.DEPOSIT) {
+                    balance += amount;
+                }
+                if(type == EntryType.WITHDRAW) {
+                    balance -= amount;
+                } 
+            }
+        }
+        return balance;
+    }
+
     private void connect() {
-        Builder b = Cluster.builder().addContactPoint(_contactPoint)
-            .withCredentials(_username, _password);
-        _cluster = b.build();
-        _session = _cluster.connect(_keyspace);
+        if(_cluster == null || _cluster.isClosed()) {
+            Builder b = Cluster.builder().addContactPoint(_contactPoint)
+                .withCredentials(_username, _password);
+            _cluster = b.build();
+        }
+        if(_session == null || _session.isClosed()) {
+            _session = _cluster.connect(_keyspace);
+        }
     }
 
     private void close() {
-        _session.close();
-        _cluster.close();
+        if(_session != null && !_session.isClosed()) {
+            _session.close();
+        }
+        if(_cluster != null && !_cluster.isClosed()) {
+            _cluster.close();
+        }
     }
 }
