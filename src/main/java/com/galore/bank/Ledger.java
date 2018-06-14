@@ -77,13 +77,39 @@ public class Ledger {
         }
     }
 
-    public double getBalance(String accountId, Date snapshotDate) {
-        double balance = 0;
+    public void saveBalance(String accountId, Date snapshotDate, double balance) {
         connect();
-        StringBuilder sb = new StringBuilder("SELECT amount, entry_type FROM account_entries WHERE ");
+        StringBuilder sb = new StringBuilder("UPDATE balance_snapshots SET ");
+        sb.append("balance =").append(balance).append(", ")
+            .append("snapshot_date =").append(snapshotDate.getTime()).append(" ")
+            .append("WHERE account_id ='").append(accountId).append("' ");
+        String command = sb.toString();
+        _log.info(command);
+        _session.execute(command);
+    }
+
+    public double getBalance(String accountId) {
+        double balance = 0;
+        Date snapshotDate = new Date();
+        connect();
+
+        StringBuilder sb = new StringBuilder("SELECT balance, snapshot_date FROM balance_snapshots WHERE ")
+            .append("account_id ='").append(accountId).append("' ");
+        String command = sb.toString();
+        _log.info(command);
+        ResultSet rs = _session.execute(command);
+        Row balanceSnapshotRow = rs.one();
+        if(balanceSnapshotRow != null) {
+            balance = balanceSnapshotRow.getDouble("balance");
+            snapshotDate = balanceSnapshotRow.getTimestamp("snapshot_date");
+        }
+        sb = new StringBuilder("SELECT amount, entry_type FROM account_entries WHERE ");
         sb.append("account_id ='").append(accountId).append("' ")
+            .append("AND entry_datetime <").append(snapshotDate.getTime()).append(" ")
             .append("ORDER BY entry_datetime DESC;");
-        ResultSet rs = _session.execute(sb.toString());
+        command = sb.toString();
+        _log.info(command);
+        rs = _session.execute(command);
         List<Row> rows = rs.all();
         if(rows.size() > 0) {
             _log.info("Restoring balance for {}", accountId);

@@ -26,12 +26,7 @@ public class AccountsInit {
         Random rnd = new Random();
         for (int i = 1; i <= 1000; i++) {
             String id = String.valueOf(i);
-            ActorRef loanAccountRef = null;
-            /*if(i % 2 == 0) {
-                double max = 1000 * rnd.nextDouble();
-                loanAccountRef = _system.actorOf(LoanAccountActor.props(id, max), "LOAN" + id);
-            }*/
-            ActorRef accountRef = _system.actorOf(AccountActor.props(id, 0, _ledger, loanAccountRef), id);
+            ActorRef accountRef = _system.actorOf(AccountActor.props(id, 0, _ledger), id);
             _accountBag.add(id , accountRef);
         }
     }
