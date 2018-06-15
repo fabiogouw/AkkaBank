@@ -2,9 +2,9 @@ package com.galore.bank;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
 
 public class AccountBag {
     private final Map<String, ActorRef> _references = new HashMap<String, ActorRef>();
@@ -20,5 +20,10 @@ public class AccountBag {
         else {
             return null;
         }
+    }
+
+    public String getRandomAccountId() {
+        Random r = new Random();
+        return Integer.toString(r.nextInt(_references.size()) + 1);
     }
 }

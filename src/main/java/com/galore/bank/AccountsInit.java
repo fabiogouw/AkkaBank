@@ -23,7 +23,6 @@ public class AccountsInit {
 
     @PostConstruct
     public void init() {
-        Random rnd = new Random();
         for (int i = 1; i <= 1000; i++) {
             String id = String.valueOf(i);
             ActorRef accountRef = _system.actorOf(AccountActor.props(id, 0, _ledger), id);

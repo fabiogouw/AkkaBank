@@ -100,8 +100,11 @@ public class Ledger {
         ResultSet rs = _session.execute(command);
         Row balanceSnapshotRow = rs.one();
         if(balanceSnapshotRow != null) {
-            balance = balanceSnapshotRow.getDouble("balance");
+            balance = balanceSnapshotRow.getFloat("balance");
             snapshotDate = balanceSnapshotRow.getTimestamp("snapshot_date");
+        }
+        else {
+            balance = 1000; // for simulations
         }
         sb = new StringBuilder("SELECT amount, entry_type FROM account_entries WHERE ");
         sb.append("account_id ='").append(accountId).append("' ")
