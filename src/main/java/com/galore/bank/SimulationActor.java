@@ -47,13 +47,13 @@ public class SimulationActor extends AbstractActor {
         return receiveBuilder()
         .match(StartRequest.class, req -> {
             _log.info("Simulation for " + _id);
-            for(int i = 0; i < 10; i++) {
+            for(int i = 0; i < 100; i++) {
                 ActorRef transferRef = getContext().actorOf(TransferActor.props(_accountBag));
-                Thread.sleep((long)Math.random() * 1000);
-                transferRef.tell(new TransferActor.TransferRequest(UUID.randomUUID().toString(), _accountBag.getRandomAccountId(), _accountBag.getRandomAccountId(), Math.random() * 1000), getSelf());
+                String accountFrom = _accountBag.getRandomAccountId();
+                String accountTo = _accountBag.getRandomAccountId();
+                transferRef.tell(new TransferActor.TransferRequest(UUID.randomUUID().toString(), accountFrom, accountTo, Math.random() * 1000), getSelf());
             }
             if(req.getMaxIterations() > 0) {
-                Thread.sleep((long)Math.random() * 5000);
                 getSelf().tell(new StartRequest(req.getMaxIterations() - 1), getSelf());
             }
         })

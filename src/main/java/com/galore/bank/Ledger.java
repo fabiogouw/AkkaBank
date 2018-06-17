@@ -108,7 +108,7 @@ public class Ledger {
         }
         sb = new StringBuilder("SELECT amount, entry_type FROM account_entries WHERE ");
         sb.append("account_id ='").append(accountId).append("' ")
-            .append("AND entry_datetime <").append(snapshotDate.getTime()).append(" ")
+            .append("AND entry_datetime > ").append(snapshotDate.getTime()).append(" ")
             .append("ORDER BY entry_datetime DESC;");
         command = sb.toString();
         _log.info(command);
