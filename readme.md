@@ -4,7 +4,7 @@ This is a study of how to use Akka actors and exposing them as REST endpoints. I
 
 It was developed using Visual Studio Code. To run, use the command below, replacing the command line arguments (or configuring environment variables).
 ```bash
-mvn spring-boot:run -Dspring-boot.run.arguments=--cass.contactPoint=172.18.0.1,--cass.keyspace=ledger,--cass.username=xxx,--cass.password=xxx
+mvn spring-boot:run -Dspring-boot.run.arguments=--cass.contactPoint=172.17.0.3,--cass.keyspace=ledger,--cass.username=xxx,--cass.password=xxx
 ```
 
 To build, run the following command:

@@ -8,10 +8,12 @@ import org.springframework.stereotype.Component;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.cluster.sharding.ClusterSharding;
+import akka.cluster.sharding.ClusterShardingSettings;
 
 @Component
 public class AccountsInit {
-    private final static int TOTAL_ACCOUNTS = 1000; 
+    private final static int TOTAL_ACCOUNTS = 1; 
     private final AccountBag _accountBag;
     private final ActorSystem _system;
     private final Ledger _ledger;
@@ -29,5 +31,11 @@ public class AccountsInit {
             ActorRef accountRef = _system.actorOf(AccountActor.props(id, 0, _ledger), id);
             _accountBag.add(id , accountRef);
         }
+        ClusterSharding.get(_system)
+                       .start(BranchActor.SHARD,
+                                BranchActor.props(_ledger),
+                                ClusterShardingSettings.create(_system),
+                                BranchActor.shardExtractor()
+                       );        
     }
 }
