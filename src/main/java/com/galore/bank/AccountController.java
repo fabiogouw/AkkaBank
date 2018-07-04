@@ -2,6 +2,7 @@ package com.galore.bank;
 
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
+import java.util.Random;
 
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.cluster.sharding.ClusterSharding;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 import scala.concurrent.Await;
@@ -23,9 +26,11 @@ public class AccountController {
 
     private static final int TIMEOUT_IN_SECONDS = 5;
     private final AccountBag _accountBag;
+    private final ActorSystem _system;
 
-    public AccountController(AccountBag accountBag) {
+    public AccountController(AccountBag accountBag, ActorSystem system) {
         _accountBag = accountBag;
+        _system = system;
     }
 
     @RequestMapping(value="{accountId}/balance", method = RequestMethod.GET)
@@ -69,5 +74,15 @@ public class AccountController {
         catch(TimeoutException ex) {
             return new OperationResponse(operation.getCorrelationId(), operation.getAmount(), 0, false);
         }
+    }
+
+    @RequestMapping(value="shard", method = RequestMethod.GET)
+    public String getShard() throws Exception {
+        ActorRef postRegion = ClusterSharding.get(_system).shardRegion(BranchActor.SHARD);
+        Timeout timeout = new Timeout(Duration.create(TIMEOUT_IN_SECONDS, "seconds"));
+        Random rand = new Random();
+        Future<Object> future = Patterns.ask(postRegion, new NewAccount(String.valueOf(rand.nextInt(10))), timeout);
+        Await.result(future, timeout.duration());
+        return "ok";
     }    
 }

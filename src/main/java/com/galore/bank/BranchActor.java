@@ -32,6 +32,9 @@ public class BranchActor extends AbstractActor {
     @Override
     public Receive createReceive() {
         return receiveBuilder()
+        .match(NewAccount.class, m -> {
+            getSender().tell(m, self());
+        })
             .build();
     }
 
@@ -47,9 +50,9 @@ public class BranchActor extends AbstractActor {
 
         @Override
         public String entityId(Object o) {
-            /*if (o instanceof NewAccount) {
+            if (o instanceof NewAccount) {
                 return ((NewAccount) o).getId();
-            }*/
+            }
             return null;
         }
     }

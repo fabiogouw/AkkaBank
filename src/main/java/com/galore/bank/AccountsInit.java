@@ -4,6 +4,9 @@ import java.util.Random;
 
 import javax.annotation.PostConstruct;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import org.springframework.stereotype.Component;
 
 import akka.actor.ActorRef;
@@ -31,6 +34,7 @@ public class AccountsInit {
             ActorRef accountRef = _system.actorOf(AccountActor.props(id, 0, _ledger), id);
             _accountBag.add(id , accountRef);
         }
+
         ClusterSharding.get(_system)
                        .start(BranchActor.SHARD,
                                 BranchActor.props(_ledger),
