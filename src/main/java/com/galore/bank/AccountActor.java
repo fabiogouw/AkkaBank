@@ -18,7 +18,7 @@ import java.util.concurrent.*;
 
 import com.galore.bank.Ledger.EntryType;
 
-public class AccountActor extends AbstractActorWithStash {
+public class AccountActor extends AbstractPersistentActor {
 
     static class BalanceRequest {
 
@@ -178,7 +178,7 @@ public class AccountActor extends AbstractActorWithStash {
                 if(upd.getEntryType() == EntryType.DEPOSIT) {
                     response = new DepositResponse(upd.getCorrelationId(), _balance, true);
                 }
-                else if(upd.getEntryType() == EntryType.WITHDRAW) {
+                if(upd.getEntryType() == EntryType.WITHDRAW) {
                     response = new WithdrawResponse(upd.getCorrelationId(), _balance, true);
                 }
                 upd.getRespondTo().tell(response, getSelf());
@@ -208,12 +208,13 @@ public class AccountActor extends AbstractActorWithStash {
                 ActorRef respondTo = getSender();
                 if(_balance >= req.getAmount()) {
                     CompletableFuture<Void> future = _ledger.insert(_id, new Date(), UUID.randomUUID(), req.getAmount(), UUID.fromString(req.getCorrelationId()), "withdraw", Ledger.EntryType.WITHDRAW.getValue());
+                    getContext().become(createUpdatingReceive());
                     future.thenAccept(r -> {
-                        getSelf().tell(new InternalOperationStateUpdate(req.getCorrelationId(), EntryType.WITHDRAW, req.getAmount(), respondTo), getSelf());
+                        getSelf().tell(new InternalOperationStateUpdate(req.getCorrelationId(), EntryType.WITHDRAW, -1 * req.getAmount(), respondTo), getSelf());
                     });
                 }
                 else {
-                    getSender().tell(new WithdrawResponse(req.getCorrelationId(), _balance, false), getSelf());
+                    respondTo.tell(new WithdrawResponse(req.getCorrelationId(), _balance, false), getSelf());
                 }
             })        
             .build();
@@ -229,4 +230,14 @@ public class AccountActor extends AbstractActorWithStash {
             _entriesInserted = 0;
         }
     }
+
+	@Override
+	public String persistenceId() {
+		return "account-persistence-id";
+	}
+
+	@Override
+	public Receive createReceiveRecover() {
+		return receiveBuilder().matchAny(any -> {}).build();
+	}
 }
