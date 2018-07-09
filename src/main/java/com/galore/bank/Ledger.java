@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.slf4j.Logger;
+import java.util.concurrent.*;
 
 import com.datastax.driver.core.Session;
 
@@ -54,7 +55,7 @@ public class Ledger {
     @Value("${cass.password}")
     private String _password;
 
-    public void insert(String accountId, Date entryDatetime, UUID entryId, double amount, UUID correlationId, String description, int entryType) {
+    public CompletableFuture<Void> insert(String accountId, Date entryDatetime, UUID entryId, double amount, UUID correlationId, String description, int entryType) {
         StringBuilder sb = new StringBuilder("INSERT INTO account_entries ");
         sb.append("(account_id, entry_datetime, entry_id, amount, correlation_id, description, entry_type) ")
             .append("VALUES (")
@@ -69,8 +70,12 @@ public class Ledger {
         connect();
         try {
             String command = sb.toString();
-            _log.info(command);
-            _session.execute(command);
+            
+            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                _log.info(command);
+                _session.execute(command);
+            });   
+            return future;         
         }
         finally {
             //close();

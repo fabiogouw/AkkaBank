@@ -6,20 +6,26 @@ import java.util.Map;
 import java.util.UUID;
 
 import akka.actor.AbstractActor;
+import akka.actor.AbstractActorWithStash;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+import akka.persistence.AbstractPersistentActor;
 import scala.Option;
 
-public class AccountActor extends AbstractActor {
+import java.util.concurrent.*;
+
+import com.galore.bank.Ledger.EntryType;
+
+public class AccountActor extends AbstractActorWithStash {
 
     static class BalanceRequest {
 
     }
 
     static class BalanceResponse {
-        private double _balance;
+        private final double _balance;
         
         public BalanceResponse(double balance) {
             _balance = balance;
@@ -29,11 +35,11 @@ public class AccountActor extends AbstractActor {
         }
     }
 
-    static class DepositRequest {
-        private String _correlationId;
-        private double _amount;
+    static class OperationRequest {
+        private final String _correlationId;
+        private final double _amount;
         
-        public DepositRequest(String correlationId, double amount) {
+        public OperationRequest(String correlationId, double amount) {
             _correlationId = correlationId;
             _amount = amount;
         }
@@ -45,11 +51,11 @@ public class AccountActor extends AbstractActor {
         }
     }
 
-    static class DepositResponse {
-        private String _correlationId;
-        private double _currentBalance;
-        private Boolean _success;
-        public DepositResponse(String correlationId, double currentBalance, Boolean success) {
+    static class OperationResponse {
+        private final String _correlationId;
+        private final double _currentBalance;
+        private final Boolean _success;
+        public OperationResponse(String correlationId, double currentBalance, Boolean success) {
             _correlationId = correlationId;
             _currentBalance = currentBalance;
             _success = success;
@@ -64,42 +70,56 @@ public class AccountActor extends AbstractActor {
         public Boolean getSuccess() {
             return _success;
         }
+    }    
+
+    static class DepositRequest extends OperationRequest {
+        public DepositRequest(String correlationId, double amount) {
+            super(correlationId, amount);
+        }
     }
 
-    static class WithdrawRequest {
-        private String _correlationId;
-        private double _amount;
-        
-        public WithdrawRequest(String correlationId, double amount) {
-            _correlationId = correlationId;
-            _amount = amount;
+    static class DepositResponse extends OperationResponse {
+        public DepositResponse(String correlationId, double currentBalance, Boolean success) {
+            super(correlationId, currentBalance, success);
         }
+    }
+
+    static class WithdrawRequest extends OperationRequest {
+        public WithdrawRequest(String correlationId, double amount) {
+            super(correlationId, amount);
+        }
+    }
+
+    static class WithdrawResponse extends OperationResponse {
+        public WithdrawResponse(String correlationId, double currentBalance, Boolean success) {
+            super(correlationId, currentBalance, success);
+        }
+    }
+
+    static class InternalOperationStateUpdate {
+        private final String _correlationId;
+        private final Ledger.EntryType _entryType;
+        private final double _amount;
+        private final ActorRef _respondTo;
+
+        public InternalOperationStateUpdate(String correlationId, Ledger.EntryType entryType, double amount, ActorRef respondTo) {
+            _correlationId = correlationId;
+            _entryType = entryType;
+            _amount = amount;
+            _respondTo = respondTo;
+        }
+
         public String getCorrelationId() {
             return _correlationId;
-        }
+        }        
+        public Ledger.EntryType getEntryType() {
+            return _entryType;
+        }        
         public double getAmount() {
             return _amount;
         }
-    }
-
-    static class WithdrawResponse {
-        private String _correlationId;
-        private double _currentBalance;
-        private Boolean _success;
-        public WithdrawResponse(String correlationId, double currentBalance, Boolean success) {
-            _correlationId = correlationId;
-            _currentBalance = currentBalance;
-            _success = success;
-        }
-
-        public String getCorrelationId() {
-            return _correlationId;
-        }
-        public double getCurrentBalance() {
-            return _currentBalance;
-        }         
-        public Boolean getSuccess() {
-            return _success;
+        public ActorRef getRespondTo() {
+            return _respondTo;
         }
     }
 
@@ -127,45 +147,80 @@ public class AccountActor extends AbstractActor {
     }
 
     @Override
-    public void preRestart(Throwable reason, Option<Object> message) throws Exception {
+    public void preRestart(Throwable reason, Option<Object> message) {
         super.preRestart(reason, message);
         _balance += _ledger.getBalance(_id);
     }
 
     @Override
-    public void postStop() throws Exception {
+    
+    public void postStop() {
         _ledger.saveBalance(_id, new Date(), _balance);
         super.postStop();
     }
 
     @Override
     public Receive createReceive() {
+        return createRespondingReceive();
+    }
+
+    private Receive createUpdatingReceive() {
         return receiveBuilder()
             .match(BalanceRequest.class, req -> {
-                getSender().tell(new BalanceResponse(_balance), getSelf());
+                // it doesn't matter if we're updating, we can send the current balance
+                sendBalance(getSender());
+            })        
+            .match(InternalOperationStateUpdate.class, upd -> {
+                _entriesInserted += 1;
+                _balance = _balance + upd.getAmount();
+                saveBalanceIfNeeded();
+                OperationResponse response = null;
+                if(upd.getEntryType() == EntryType.DEPOSIT) {
+                    response = new DepositResponse(upd.getCorrelationId(), _balance, true);
+                }
+                else if(upd.getEntryType() == EntryType.WITHDRAW) {
+                    response = new WithdrawResponse(upd.getCorrelationId(), _balance, true);
+                }
+                upd.getRespondTo().tell(response, getSelf());
+                getContext().unbecome();
+                unstashAll();
+            })
+            .matchAny(o -> {
+                stash();
+            })
+            .build();
+    }
+
+    private Receive createRespondingReceive() {
+        return receiveBuilder()
+            .match(BalanceRequest.class, req -> {
+                sendBalance(getSender());
             })
             .match(DepositRequest.class, req -> {
                 ActorRef respondTo = getSender();
-                _ledger.insert(_id, new Date(), UUID.randomUUID(), req.getAmount(), UUID.fromString(req.getCorrelationId()), "deposit", Ledger.EntryType.DEPOSIT.getValue());
-                _entriesInserted++;
-                _balance = _balance + req.getAmount();
-                respondTo.tell(new DepositResponse(req.getCorrelationId(), _balance, true), getSelf());
-                saveBalanceIfNeeded();
+                CompletableFuture<Void> future = _ledger.insert(_id, new Date(), UUID.randomUUID(), req.getAmount(), UUID.fromString(req.getCorrelationId()), "deposit", Ledger.EntryType.DEPOSIT.getValue());
+                getContext().become(createUpdatingReceive());
+                future.thenAccept(r -> {
+                    getSelf().tell(new InternalOperationStateUpdate(req.getCorrelationId(), EntryType.DEPOSIT, req.getAmount(), respondTo), getSelf());
+                });
             })
             .match(WithdrawRequest.class, req -> {
-                _log.info("WithdrawRequest - {}", req.getAmount());
+                ActorRef respondTo = getSender();
                 if(_balance >= req.getAmount()) {
-                    _ledger.insert(_id, new Date(), UUID.randomUUID(), req.getAmount(), UUID.fromString(req.getCorrelationId()), "withdraw", Ledger.EntryType.WITHDRAW.getValue());
-                    _entriesInserted++;
-                    _balance = _balance - req.getAmount();
-                    getSender().tell(new WithdrawResponse(req.getCorrelationId(), _balance, true), getSelf());
-                    saveBalanceIfNeeded();
+                    CompletableFuture<Void> future = _ledger.insert(_id, new Date(), UUID.randomUUID(), req.getAmount(), UUID.fromString(req.getCorrelationId()), "withdraw", Ledger.EntryType.WITHDRAW.getValue());
+                    future.thenAccept(r -> {
+                        getSelf().tell(new InternalOperationStateUpdate(req.getCorrelationId(), EntryType.WITHDRAW, req.getAmount(), respondTo), getSelf());
+                    });
                 }
                 else {
                     getSender().tell(new WithdrawResponse(req.getCorrelationId(), _balance, false), getSelf());
                 }
-            })
+            })        
             .build();
+    }
+
+    private void sendBalance(ActorRef respondTo) {
+        respondTo.tell(new BalanceResponse(_balance), getSelf());
     }
 
     private void saveBalanceIfNeeded() {

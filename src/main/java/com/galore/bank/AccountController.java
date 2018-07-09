@@ -4,6 +4,8 @@ import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 import java.util.Random;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,7 +45,7 @@ public class AccountController {
     }
 
     @RequestMapping(value="{accountId}/deposit", method = RequestMethod.POST)
-    public @ResponseBody OperationResponse deposit(@PathVariable String accountId, @RequestBody OperationRequest operation) throws Exception {
+    public @ResponseBody ResponseEntity<OperationResponse> deposit(@PathVariable String accountId, @RequestBody OperationRequest operation) throws Exception {
         if(operation.getCorrelationId() == null || operation.getCorrelationId().isEmpty()) {
             operation.setCorrelationId(UUID.randomUUID().toString());
         }        
@@ -52,15 +54,15 @@ public class AccountController {
         try {
             Future<Object> future = Patterns.ask(account, new AccountActor.DepositRequest(operation.getCorrelationId(), operation.getAmount()), timeout);
             AccountActor.DepositResponse result = (AccountActor.DepositResponse) Await.result(future, timeout.duration());
-            return new OperationResponse(operation.getCorrelationId(), operation.getAmount(), result.getCurrentBalance(), result.getSuccess());
+            return ResponseEntity.ok(new OperationResponse(operation.getCorrelationId(), operation.getAmount(), result.getCurrentBalance(), result.getSuccess()));
         }
         catch(TimeoutException ex) {
-            return new OperationResponse(operation.getCorrelationId(), operation.getAmount(), 0, false);
+            return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body(new OperationResponse(operation.getCorrelationId(), operation.getAmount(), 0, false));
         }
     }
 
     @RequestMapping(value="{accountId}/withdraw", method = RequestMethod.POST)
-    public @ResponseBody OperationResponse withdraw(@PathVariable String accountId, @RequestBody OperationRequest operation) throws Exception {
+    public @ResponseBody ResponseEntity<OperationResponse> withdraw(@PathVariable String accountId, @RequestBody OperationRequest operation) throws Exception {
         if(operation.getCorrelationId() == null || operation.getCorrelationId().isEmpty()) {
             operation.setCorrelationId(UUID.randomUUID().toString());
         }
@@ -69,10 +71,10 @@ public class AccountController {
         try {
             Future<Object> future = Patterns.ask(account, new AccountActor.WithdrawRequest(operation.getCorrelationId(), operation.getAmount()), timeout);
             AccountActor.WithdrawResponse result = (AccountActor.WithdrawResponse) Await.result(future, timeout.duration());
-            return new OperationResponse(operation.getCorrelationId(), operation.getAmount(), result.getCurrentBalance(), result.getSuccess());
+            return ResponseEntity.ok(new OperationResponse(operation.getCorrelationId(), operation.getAmount(), result.getCurrentBalance(), result.getSuccess()));
         }
         catch(TimeoutException ex) {
-            return new OperationResponse(operation.getCorrelationId(), operation.getAmount(), 0, false);
+            return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body(new OperationResponse(operation.getCorrelationId(), operation.getAmount(), 0, false));
         }
     }
 
