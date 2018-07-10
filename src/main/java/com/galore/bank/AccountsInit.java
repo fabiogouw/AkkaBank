@@ -16,30 +16,21 @@ import akka.cluster.sharding.ClusterShardingSettings;
 
 @Component
 public class AccountsInit {
-    private final static int TOTAL_ACCOUNTS = 1; 
-    private final AccountBag _accountBag;
     private final ActorSystem _system;
     private final Ledger _ledger;
 
-    public AccountsInit(AccountBag accountBag, ActorSystem system, Ledger ledger) {
-        _accountBag = accountBag;
+    public AccountsInit(ActorSystem system, Ledger ledger) {
         _system = system;
         _ledger = ledger;
     }
 
     @PostConstruct
     public void init() {
-        for (int i = 1; i <= TOTAL_ACCOUNTS; i++) {
-            String id = String.valueOf(i);
-            ActorRef accountRef = _system.actorOf(AccountActor.props(id, 0, _ledger), id);
-            _accountBag.add(id , accountRef);
-        }
-
         ClusterSharding.get(_system)
-                       .start(BranchActor.SHARD,
-                                BranchActor.props(_ledger),
+                       .start(AccountActor.SHARD,
+                                AccountActor.props(0, _ledger),
                                 ClusterShardingSettings.create(_system),
-                                BranchActor.shardExtractor()
-                       );        
+                                AccountActor.shardExtractor()
+                       );      
     }
 }

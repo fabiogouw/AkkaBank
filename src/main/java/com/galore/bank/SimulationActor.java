@@ -26,19 +26,16 @@ public class SimulationActor extends AbstractActor {
         }
     }
 
-    static Props props(String id, AccountBag accountBag) {
-        return Props.create(SimulationActor.class, id, accountBag);
+    static Props props(String id) {
+        return Props.create(SimulationActor.class, id);
     }
 
+    private static final int TOTAL_ACCOUNTS = 1000;
     private final LoggingAdapter _log;
     private final String _id;
-    private final AccountBag _accountBag;
-    private double _sum = 0;
-    private ActorRef _respondSumTo;
 
-    public SimulationActor(String id, AccountBag accountBag) {
+    public SimulationActor(String id) {
         _id = id;
-        _accountBag = accountBag;
         _log = Logging.getLogger(getContext().getSystem(), this);
     }
 
@@ -47,10 +44,11 @@ public class SimulationActor extends AbstractActor {
         return receiveBuilder()
         .match(StartRequest.class, req -> {
             _log.info("Simulation for " + _id);
+            Random rand = new Random();
             for(int i = 0; i < 100; i++) {
-                ActorRef transferRef = getContext().actorOf(TransferActor.props(_accountBag));
-                String accountFrom = _accountBag.getRandomAccountId();
-                String accountTo = _accountBag.getRandomAccountId();
+                ActorRef transferRef = getContext().actorOf(TransferActor.props());
+                String accountFrom = String.valueOf(rand.nextInt(TOTAL_ACCOUNTS) + 1);
+                String accountTo = String.valueOf(rand.nextInt(TOTAL_ACCOUNTS) + 1);
                 transferRef.tell(new TransferActor.TransferRequest(UUID.randomUUID().toString(), accountFrom, accountTo, Math.random() * 1000), getSelf());
             }
             if(req.getMaxIterations() > 0) {

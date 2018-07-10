@@ -12,6 +12,7 @@ import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import scala.Option;
+import akka.cluster.sharding.ClusterSharding;
 
 public class TransferActor extends AbstractActor {
 
@@ -57,20 +58,18 @@ public class TransferActor extends AbstractActor {
         }
     }
 
-    static Props props(AccountBag accountBag) {
-        return Props.create(TransferActor.class, accountBag);
+    static Props props() {
+        return Props.create(TransferActor.class);
     }
 
     private final LoggingAdapter _log;
-    private final AccountBag _accountBag;
     private String _correlationId;
-    private ActorRef _accountFrom;
-    private ActorRef _accountTo;
+    private String _accountFrom;
+    private String _accountTo;
     private double _amount;
     private ActorRef _originalSender;
 
-    public TransferActor(AccountBag accountBag) {
-        _accountBag = accountBag;
+    public TransferActor() {
         _log = Logging.getLogger(getContext().getSystem(), this);
     }
 
@@ -78,13 +77,14 @@ public class TransferActor extends AbstractActor {
         return receiveBuilder()
         .match(TransferRequest.class, req -> {
             _correlationId = req.getCorrelationId();
-            _accountFrom = _accountBag.get(req.getAccountFrom());
-            _accountTo = _accountBag.get(req.getAccountTo());
+            _accountFrom = req.getAccountFrom();
+            _accountTo = req.getAccountTo();
             _amount = req.getAmount();
             _originalSender = getSender();
             _log.info("Transfer for {}, {}, {}, {}", _correlationId, req.getAccountFrom(), req.getAccountTo(), _amount);
+            ActorRef accountRegion = ClusterSharding.get(getContext().getSystem()).shardRegion(AccountActor.SHARD);
             getContext().become(receiveWithdrawing());
-            _accountFrom.tell(new AccountActor.WithdrawRequest(_correlationId, _amount), getSelf());
+            accountRegion.tell(new AccountActor.WithdrawRequest(_accountFrom, _correlationId, _amount), getSelf());
         })
         .build();
     }
@@ -94,8 +94,9 @@ public class TransferActor extends AbstractActor {
         .match(AccountActor.WithdrawResponse.class, res -> {
             _log.info("Transfer withdraw for {} - {}", _correlationId, res.getSuccess());
             if(res.getSuccess()) {
+                ActorRef accountRegion = ClusterSharding.get(getContext().getSystem()).shardRegion(AccountActor.SHARD);
                 getContext().become(receiveDepositing());
-                _accountTo.tell(new AccountActor.DepositRequest(_correlationId, _amount), getSelf());
+                accountRegion.tell(new AccountActor.DepositRequest(_accountTo, _correlationId, _amount), getSelf());
             }
             else {
                 _originalSender.tell(new TransferResponse(_correlationId, false), getSelf());

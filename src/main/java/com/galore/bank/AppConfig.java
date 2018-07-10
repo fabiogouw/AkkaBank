@@ -36,12 +36,6 @@ public class AppConfig {
     }
 
     @Bean
-    @Scope(value = "singleton")
-    public AccountBag accountBag() {
-        return new AccountBag();
-    }
-
-    @Bean
     public Ledger ledger() {
         return new Ledger();
     }    

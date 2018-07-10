@@ -27,21 +27,24 @@ import scala.concurrent.duration.Duration;
 public class AccountController {
 
     private static final int TIMEOUT_IN_SECONDS = 5;
-    private final AccountBag _accountBag;
     private final ActorSystem _system;
 
-    public AccountController(AccountBag accountBag, ActorSystem system) {
-        _accountBag = accountBag;
+    public AccountController(ActorSystem system) {
         _system = system;
     }
 
     @RequestMapping(value="{accountId}/balance", method = RequestMethod.GET)
-    public BalanceResponse getBalance(@PathVariable String accountId) throws Exception {
-        ActorRef account = _accountBag.get(accountId);
+    public ResponseEntity<BalanceResponse> getBalance(@PathVariable String accountId) throws Exception {
+        ActorRef accountRegion = ClusterSharding.get(_system).shardRegion(AccountActor.SHARD);
         Timeout timeout = new Timeout(Duration.create(TIMEOUT_IN_SECONDS, "seconds"));
-        Future<Object> future = Patterns.ask(account, new AccountActor.BalanceRequest(), timeout);
-        AccountActor.BalanceResponse result = (AccountActor.BalanceResponse) Await.result(future, timeout.duration());
-        return new BalanceResponse(accountId, result.getBalance());
+        try {
+            Future<Object> future = Patterns.ask(accountRegion, new AccountActor.BalanceRequest(accountId), timeout);
+            AccountActor.BalanceResponse result = (AccountActor.BalanceResponse) Await.result(future, timeout.duration());
+            return ResponseEntity.ok(new BalanceResponse(accountId, result.getBalance()));
+        }
+        catch(TimeoutException ex) {
+            return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body(null);
+        }        
     }
 
     @RequestMapping(value="{accountId}/deposit", method = RequestMethod.POST)
@@ -49,10 +52,10 @@ public class AccountController {
         if(operation.getCorrelationId() == null || operation.getCorrelationId().isEmpty()) {
             operation.setCorrelationId(UUID.randomUUID().toString());
         }        
-        ActorRef account = _accountBag.get(accountId);
+        ActorRef accountRegion = ClusterSharding.get(_system).shardRegion(AccountActor.SHARD);
         Timeout timeout = new Timeout(Duration.create(TIMEOUT_IN_SECONDS, "seconds"));
         try {
-            Future<Object> future = Patterns.ask(account, new AccountActor.DepositRequest(operation.getCorrelationId(), operation.getAmount()), timeout);
+            Future<Object> future = Patterns.ask(accountRegion, new AccountActor.DepositRequest(accountId, operation.getCorrelationId(), operation.getAmount()), timeout);
             AccountActor.DepositResponse result = (AccountActor.DepositResponse) Await.result(future, timeout.duration());
             return ResponseEntity.ok(new OperationResponse(operation.getCorrelationId(), operation.getAmount(), result.getCurrentBalance(), result.getSuccess()));
         }
@@ -66,25 +69,15 @@ public class AccountController {
         if(operation.getCorrelationId() == null || operation.getCorrelationId().isEmpty()) {
             operation.setCorrelationId(UUID.randomUUID().toString());
         }
-        ActorRef account = _accountBag.get(accountId);
+        ActorRef accountRegion = ClusterSharding.get(_system).shardRegion(AccountActor.SHARD);
         Timeout timeout = new Timeout(Duration.create(TIMEOUT_IN_SECONDS, "seconds"));
         try {
-            Future<Object> future = Patterns.ask(account, new AccountActor.WithdrawRequest(operation.getCorrelationId(), operation.getAmount()), timeout);
+            Future<Object> future = Patterns.ask(accountRegion, new AccountActor.WithdrawRequest(accountId, operation.getCorrelationId(), operation.getAmount()), timeout);
             AccountActor.WithdrawResponse result = (AccountActor.WithdrawResponse) Await.result(future, timeout.duration());
             return ResponseEntity.ok(new OperationResponse(operation.getCorrelationId(), operation.getAmount(), result.getCurrentBalance(), result.getSuccess()));
         }
         catch(TimeoutException ex) {
             return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body(new OperationResponse(operation.getCorrelationId(), operation.getAmount(), 0, false));
         }
-    }
-
-    @RequestMapping(value="shard", method = RequestMethod.GET)
-    public String getShard() throws Exception {
-        ActorRef postRegion = ClusterSharding.get(_system).shardRegion(BranchActor.SHARD);
-        Timeout timeout = new Timeout(Duration.create(TIMEOUT_IN_SECONDS, "seconds"));
-        Random rand = new Random();
-        Future<Object> future = Patterns.ask(postRegion, new NewAccount(String.valueOf(rand.nextInt(10))), timeout);
-        Await.result(future, timeout.duration());
-        return "ok";
-    }    
+    }  
 }

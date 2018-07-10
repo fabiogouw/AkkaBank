@@ -1,32 +1,46 @@
 package com.galore.bank;
 
+import java.io.Serializable;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
-import akka.actor.AbstractActor;
-import akka.actor.AbstractActorWithStash;
 import akka.actor.ActorRef;
 import akka.actor.Props;
+import akka.cluster.sharding.ShardRegion;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.persistence.AbstractPersistentActor;
+import akka.persistence.AbstractPersistentActorWithAtLeastOnceDelivery;
 import scala.Option;
 
 import java.util.concurrent.*;
 
 import com.galore.bank.Ledger.EntryType;
 
-public class AccountActor extends AbstractPersistentActor {
+public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery {
 
-    static class BalanceRequest {
+    static class AccountMessage implements Serializable {
 
+        private final String _accountId;
+        
+        public AccountMessage(String accountId) {
+            _accountId = accountId;
+        }
+    
+        public String getAccountId() {
+            return _accountId;
+        }
+    }
+
+    static class BalanceRequest extends AccountMessage {
+        public BalanceRequest(String accountId) {
+            super(accountId);
+        }
     }
 
     static class BalanceResponse {
         private final double _balance;
-        
+
         public BalanceResponse(double balance) {
             _balance = balance;
         }
@@ -35,11 +49,12 @@ public class AccountActor extends AbstractPersistentActor {
         }
     }
 
-    static class OperationRequest {
+    static class OperationRequest extends AccountMessage {
         private final String _correlationId;
         private final double _amount;
         
-        public OperationRequest(String correlationId, double amount) {
+        public OperationRequest(String accountId, String correlationId, double amount) {
+            super(accountId);
             _correlationId = correlationId;
             _amount = amount;
         }
@@ -73,8 +88,8 @@ public class AccountActor extends AbstractPersistentActor {
     }    
 
     static class DepositRequest extends OperationRequest {
-        public DepositRequest(String correlationId, double amount) {
-            super(correlationId, amount);
+        public DepositRequest(String accountId, String correlationId, double amount) {
+            super(accountId, correlationId, amount);
         }
     }
 
@@ -85,8 +100,8 @@ public class AccountActor extends AbstractPersistentActor {
     }
 
     static class WithdrawRequest extends OperationRequest {
-        public WithdrawRequest(String correlationId, double amount) {
-            super(correlationId, amount);
+        public WithdrawRequest(String accountId, String correlationId, double amount) {
+            super(accountId, correlationId, amount);
         }
     }
 
@@ -123,18 +138,19 @@ public class AccountActor extends AbstractPersistentActor {
         }
     }
 
-    static Props props(String id, double initialBalance, Ledger ledger) {
-        return Props.create(AccountActor.class, id, initialBalance, ledger);
+    static Props props(double initialBalance, Ledger ledger) {
+        return Props.create(AccountActor.class, initialBalance, ledger);
     }
 
+    public static final String SHARD = "AccountActor";
     private final LoggingAdapter _log;
     private final Ledger _ledger;
     private String _id;
     private double _balance;
     private int _entriesInserted = 0;
 
-    public AccountActor(String id, double initialBalance, Ledger ledger) {
-        _id = id;
+    public AccountActor(double initialBalance, Ledger ledger) {
+        _id = getSelf().path().name();
         _balance = initialBalance;
         _ledger = ledger;
         _log = Logging.getLogger(getContext().getSystem(), this);
@@ -239,5 +255,24 @@ public class AccountActor extends AbstractPersistentActor {
 	@Override
 	public Receive createReceiveRecover() {
 		return receiveBuilder().matchAny(any -> {}).build();
-	}
+    }
+    
+    public static ShardRegion.MessageExtractor shardExtractor() {
+        return new PostShardMessageExtractor();
+    }
+
+    private static class PostShardMessageExtractor extends ShardRegion.HashCodeMessageExtractor {
+
+        PostShardMessageExtractor() {
+            super(100);
+        }
+
+        @Override
+        public String entityId(Object o) {
+            if (o instanceof AccountMessage) {
+                return ((AccountMessage) o).getAccountId();
+            }
+            return null;
+        }
+    }
 }

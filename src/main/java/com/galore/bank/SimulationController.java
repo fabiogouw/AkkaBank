@@ -14,19 +14,17 @@ import akka.actor.ActorSystem;
 @RequestMapping("/simulations")
 public class SimulationController {
 
-    private final AccountBag _accountBag;
     private final ActorSystem _system;
 
-    public SimulationController(AccountBag accountBag, ActorSystem system) {
-        _accountBag = accountBag;
+    public SimulationController(ActorSystem system) {
         _system = system;
     }
 
     @RequestMapping(value="", method = RequestMethod.POST)
     public @ResponseBody String create() throws Exception {
         String id = UUID.randomUUID().toString();
-        ActorRef simulationRef = _system.actorOf(SimulationActor.props(id, _accountBag), id);
-        simulationRef.tell(new SimulationActor.StartRequest(20), ActorRef.noSender());
+        ActorRef simulationRef = _system.actorOf(SimulationActor.props(id), id);
+        simulationRef.tell(new SimulationActor.StartRequest(200), ActorRef.noSender());
         return id;
     }    
 }
