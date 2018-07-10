@@ -21,7 +21,8 @@ public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery
 
     static class AccountMessage implements Serializable {
 
-        private final String _accountId;
+        private static final long serialVersionUID = 4766278085642796988L;
+		private final String _accountId;
         
         public AccountMessage(String accountId) {
             _accountId = accountId;
@@ -33,13 +34,16 @@ public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery
     }
 
     static class BalanceRequest extends AccountMessage {
-        public BalanceRequest(String accountId) {
+        private static final long serialVersionUID = -2216452416044790679L;
+
+		public BalanceRequest(String accountId) {
             super(accountId);
         }
     }
 
-    static class BalanceResponse {
-        private final double _balance;
+    static class BalanceResponse implements Serializable {
+        private static final long serialVersionUID = 1302757287444314441L;
+		private final double _balance;
 
         public BalanceResponse(double balance) {
             _balance = balance;
@@ -50,7 +54,8 @@ public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery
     }
 
     static class OperationRequest extends AccountMessage {
-        private final String _correlationId;
+        private static final long serialVersionUID = -188612147356070992L;
+		private final String _correlationId;
         private final double _amount;
         
         public OperationRequest(String accountId, String correlationId, double amount) {
@@ -66,8 +71,9 @@ public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery
         }
     }
 
-    static class OperationResponse {
-        private final String _correlationId;
+    static class OperationResponse implements Serializable {
+        private static final long serialVersionUID = -6747511039799099748L;
+		private final String _correlationId;
         private final double _currentBalance;
         private final Boolean _success;
         public OperationResponse(String correlationId, double currentBalance, Boolean success) {
@@ -88,25 +94,33 @@ public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery
     }    
 
     static class DepositRequest extends OperationRequest {
-        public DepositRequest(String accountId, String correlationId, double amount) {
+        private static final long serialVersionUID = 3515932482649506598L;
+
+		public DepositRequest(String accountId, String correlationId, double amount) {
             super(accountId, correlationId, amount);
         }
     }
 
     static class DepositResponse extends OperationResponse {
-        public DepositResponse(String correlationId, double currentBalance, Boolean success) {
+        private static final long serialVersionUID = -5136902613153736547L;
+
+		public DepositResponse(String correlationId, double currentBalance, Boolean success) {
             super(correlationId, currentBalance, success);
         }
     }
 
     static class WithdrawRequest extends OperationRequest {
-        public WithdrawRequest(String accountId, String correlationId, double amount) {
+        private static final long serialVersionUID = 3523795952970405852L;
+
+		public WithdrawRequest(String accountId, String correlationId, double amount) {
             super(accountId, correlationId, amount);
         }
     }
 
     static class WithdrawResponse extends OperationResponse {
-        public WithdrawResponse(String correlationId, double currentBalance, Boolean success) {
+		private static final long serialVersionUID = 7175374830232354388L;
+
+		public WithdrawResponse(String correlationId, double currentBalance, Boolean success) {
             super(correlationId, currentBalance, success);
         }
     }
