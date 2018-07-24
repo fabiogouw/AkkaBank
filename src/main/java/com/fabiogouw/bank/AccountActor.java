@@ -1,4 +1,4 @@
-package com.galore.bank;
+package com.fabiogouw.bank;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -15,7 +15,7 @@ import scala.Option;
 
 import java.util.concurrent.*;
 
-import com.galore.bank.Ledger.EntryType;
+import com.fabiogouw.bank.Ledger.EntryType;
 
 public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery {
 

@@ -1,4 +1,4 @@
-package com.galore.bank;
+package com.fabiogouw.bank;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;

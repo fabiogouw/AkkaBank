@@ -1,4 +1,4 @@
-package com.galore.bank;
+package com.fabiogouw.bank;
 
 public class OperationResponse {
     private String _correlationId;
