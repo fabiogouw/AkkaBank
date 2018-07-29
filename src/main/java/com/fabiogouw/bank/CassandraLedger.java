@@ -8,43 +8,23 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Cluster.Builder;
+import com.fabiogouw.bank.core.Ledger;
+
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.javatuples.Pair;
 import org.slf4j.Logger;
 import java.util.concurrent.*;
 
 import com.datastax.driver.core.Session;
 
 @Component
-public class Ledger {
-
-    public enum EntryType {
-        DEPOSIT(1),
-        WITHDRAW(2);
-
-        private final int _value;
-        private EntryType(int value) {
-            _value = value;
-        }
-
-        public int getValue() {
-            return _value;
-        }
-
-        public static EntryType from(int value) {
-            switch(value) {
-                case 1:
-                    return EntryType.DEPOSIT;
-                default:
-                    return EntryType.WITHDRAW;
-            }
-        }
-    }
+public class CassandraLedger implements Ledger {
 
     private Cluster _cluster;
     private Session _session;
-    private static final Logger _log = LoggerFactory.getLogger(Ledger.class);
+    private static final Logger _log = LoggerFactory.getLogger(CassandraLedger.class);
 
     @Value("${cass.contactPoint}")
     private String _contactPoint;
@@ -82,57 +62,66 @@ public class Ledger {
         }
     }
 
-    public void saveBalance(String accountId, Date snapshotDate, double balance) {
+    public CompletableFuture<Void> saveBalance(String accountId, Date snapshotDate, double balance) {
         connect();
         StringBuilder sb = new StringBuilder("UPDATE balance_snapshots SET ");
         sb.append("balance =").append(balance).append(", ")
             .append("snapshot_date =").append(snapshotDate.getTime()).append(" ")
             .append("WHERE account_id ='").append(accountId).append("' ");
         String command = sb.toString();
-        _log.info(command);
-        _session.execute(command);
+        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+            _log.info(command);
+            _session.execute(command);
+        }); 
+        return future;        
     }
 
-    public double getBalance(String accountId) {
-        double balance = 0;
-        Date snapshotDate = new Date();
-        connect();
-
-        StringBuilder sb = new StringBuilder("SELECT balance, snapshot_date FROM balance_snapshots WHERE ")
+    public CompletableFuture<Double> getBalance(String accountId) {
+        CompletableFuture<Pair<Date, Double>> future = CompletableFuture.supplyAsync(() -> {
+            double balance = 0;
+            Date snapshotDate = new Date();            
+            connect();
+            StringBuilder sb = new StringBuilder("SELECT balance, snapshot_date FROM balance_snapshots WHERE ")
             .append("account_id ='").append(accountId).append("' ");
-        String command = sb.toString();
-        _log.info(command);
-        ResultSet rs = _session.execute(command);
-        Row balanceSnapshotRow = rs.one();
-        if(balanceSnapshotRow != null) {
-            balance = balanceSnapshotRow.getFloat("balance");
-            snapshotDate = balanceSnapshotRow.getTimestamp("snapshot_date");
-        }
-        else {
-            balance = 1000; // for simulations
-        }
-        sb = new StringBuilder("SELECT amount, entry_type FROM account_entries WHERE ");
-        sb.append("account_id ='").append(accountId).append("' ")
-            .append("AND entry_datetime > ").append(snapshotDate.getTime()).append(" ")
-            .append("ORDER BY entry_datetime DESC;");
-        command = sb.toString();
-        _log.info(command);
-        rs = _session.execute(command);
-        List<Row> rows = rs.all();
-        if(rows.size() > 0) {
-            _log.info("Restoring balance for {}", accountId);
-            for(Row r:rows) {
-                EntryType type = EntryType.from(r.getInt("entry_type"));
-                double amount = r.getFloat("amount");
-                if(type == EntryType.DEPOSIT) {
-                    balance += amount;
-                }
-                if(type == EntryType.WITHDRAW) {
-                    balance -= amount;
-                } 
+            String command = sb.toString();            
+            _log.info(command);
+            ResultSet rs = _session.execute(command);
+            Row balanceSnapshotRow = rs.one();
+            if(balanceSnapshotRow != null) {
+                balance = balanceSnapshotRow.getFloat("balance");
+                snapshotDate = balanceSnapshotRow.getTimestamp("snapshot_date");
             }
-        }
-        return balance;
+            else {
+                balance = 1000; // for simulations
+            }
+            return new Pair<Date, Double>(snapshotDate, balance);
+        });
+        return future.thenApply((balanceInfo) -> {
+            connect();
+            double balance = balanceInfo.getValue1();
+            StringBuilder sb = new StringBuilder("SELECT amount, entry_type FROM account_entries WHERE ");
+            sb.append("account_id ='").append(accountId).append("' ")
+                .append("AND entry_datetime > ").append(balanceInfo.getValue0().getTime()).append(" ")
+                .append("ORDER BY entry_datetime DESC;");
+            String command = sb.toString();
+            _log.info(command);
+            ResultSet rs = _session.execute(command);
+            List<Row> rows = rs.all();
+            if(rows.size() > 0) {
+                _log.info("Restoring balance for {}", accountId);
+                for(Row r:rows) {
+                    EntryType type = EntryType.from(r.getInt("entry_type"));
+                    double amount = r.getFloat("amount");
+                    if(type == EntryType.DEPOSIT) {
+                        balance += amount;
+                    }
+                    if(type == EntryType.WITHDRAW) {
+                        balance -= amount;
+                    } 
+                }
+            }
+            return balance;
+        });
     }
 
     private void connect() {

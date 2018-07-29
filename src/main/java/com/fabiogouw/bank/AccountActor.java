@@ -9,13 +9,13 @@ import akka.actor.Props;
 import akka.cluster.sharding.ShardRegion;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import akka.persistence.AbstractPersistentActor;
 import akka.persistence.AbstractPersistentActorWithAtLeastOnceDelivery;
 import scala.Option;
 
 import java.util.concurrent.*;
 
-import com.fabiogouw.bank.Ledger.EntryType;
+import com.fabiogouw.bank.core.Ledger;
+import com.fabiogouw.bank.core.Ledger.EntryType;
 
 public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery {
 
@@ -152,6 +152,18 @@ public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery
         }
     }
 
+    static class InternalInitialization {
+        private final double _balance;
+
+        public InternalInitialization(double balance) {
+            _balance = balance;
+        }
+       
+        public double getBalance() {
+            return _balance;
+        }
+    }    
+
     static Props props(double initialBalance, Ledger ledger) {
         return Props.create(AccountActor.class, initialBalance, ledger);
     }
@@ -173,13 +185,19 @@ public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery
     @Override
     public void preStart() throws Exception {
         super.preStart();
-        _balance += _ledger.getBalance(_id);
+        CompletableFuture<Double> future =_ledger.getBalance(_id);
+        future.thenAccept(balance -> {
+            getSelf().tell(new InternalInitialization(balance), getSelf());
+        });        
     }
 
     @Override
     public void preRestart(Throwable reason, Option<Object> message) {
         super.preRestart(reason, message);
-        _balance += _ledger.getBalance(_id);
+        CompletableFuture<Double> future =_ledger.getBalance(_id);
+        future.thenAccept(balance -> {
+            getSelf().tell(new InternalInitialization(balance), getSelf());
+        });
     }
 
     @Override
@@ -191,13 +209,26 @@ public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery
 
     @Override
     public Receive createReceive() {
-        return createRespondingReceive();
+        return createInitializingReceive();
     }
+
+    private Receive createInitializingReceive() {
+        return receiveBuilder()
+            .match(InternalInitialization.class, init -> {
+                _balance = init.getBalance();
+                getContext().become(createRespondingReceive());
+                unstashAll();
+            })
+            .matchAny(o -> {
+                stash();
+            })
+            .build();
+    }    
 
     private Receive createUpdatingReceive() {
         return receiveBuilder()
             .match(BalanceRequest.class, req -> {
-                // it doesn't matter if we're updating, we can send the current balance
+                // it doesn't matter if we're updating, we can always send the current balance
                 sendBalance(getSender());
             })        
             .match(InternalOperationStateUpdate.class, upd -> {

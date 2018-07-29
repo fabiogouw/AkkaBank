@@ -1,5 +1,6 @@
 package com.fabiogouw.bank;
 
+import com.fabiogouw.bank.core.Ledger;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -37,6 +38,6 @@ public class AppConfig {
 
     @Bean
     public Ledger ledger() {
-        return new Ledger();
+        return new CassandraLedger();
     }    
 }
