@@ -4,7 +4,7 @@ import java.util.Random;
 
 import javax.annotation.PostConstruct;
 
-import com.fabiogouw.bank.core.Ledger;
+import com.fabiogouw.bank.core.contracts.Ledger;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 

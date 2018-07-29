@@ -1,6 +1,7 @@
 package com.fabiogouw.bank;
 
-import com.fabiogouw.bank.core.Ledger;
+import com.fabiogouw.bank.core.contracts.Ledger;
+import com.fabiogouw.bank.repository.CassandraLedger;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 

@@ -1,4 +1,4 @@
-package com.fabiogouw.bank.core;
+package com.fabiogouw.bank.core.contracts;
 
 import java.util.Date;
 import java.util.UUID;

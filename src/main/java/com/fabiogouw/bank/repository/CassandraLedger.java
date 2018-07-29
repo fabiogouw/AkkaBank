@@ -1,4 +1,4 @@
-package com.fabiogouw.bank;
+package com.fabiogouw.bank.repository;
 
 import java.util.Date;
 import java.util.List;
@@ -8,7 +8,7 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Cluster.Builder;
-import com.fabiogouw.bank.core.Ledger;
+import com.fabiogouw.bank.core.contracts.Ledger;
 
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

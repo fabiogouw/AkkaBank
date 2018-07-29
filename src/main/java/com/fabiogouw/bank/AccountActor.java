@@ -14,8 +14,8 @@ import scala.Option;
 
 import java.util.concurrent.*;
 
-import com.fabiogouw.bank.core.Ledger;
-import com.fabiogouw.bank.core.Ledger.EntryType;
+import com.fabiogouw.bank.core.contracts.Ledger;
+import com.fabiogouw.bank.core.contracts.Ledger.EntryType;
 
 public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery {
 
@@ -185,6 +185,7 @@ public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery
     @Override
     public void preStart() throws Exception {
         super.preStart();
+        getContext().become(createInitializingReceive());
         CompletableFuture<Double> future =_ledger.getBalance(_id);
         future.thenAccept(balance -> {
             getSelf().tell(new InternalInitialization(balance), getSelf());
@@ -194,6 +195,7 @@ public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery
     @Override
     public void preRestart(Throwable reason, Option<Object> message) {
         super.preRestart(reason, message);
+        getContext().become(createInitializingReceive());
         CompletableFuture<Double> future =_ledger.getBalance(_id);
         future.thenAccept(balance -> {
             getSelf().tell(new InternalInitialization(balance), getSelf());
@@ -209,14 +211,14 @@ public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery
 
     @Override
     public Receive createReceive() {
-        return createInitializingReceive();
+        return createRespondingReceive();
     }
 
     private Receive createInitializingReceive() {
         return receiveBuilder()
             .match(InternalInitialization.class, init -> {
                 _balance = init.getBalance();
-                getContext().become(createRespondingReceive());
+                getContext().unbecome();
                 unstashAll();
             })
             .matchAny(o -> {
