@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.util.Date;
 import java.util.UUID;
 
+import akka.actor.AbstractActorWithStash;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.cluster.sharding.ShardRegion;
@@ -17,7 +18,7 @@ import java.util.concurrent.*;
 import com.fabiogouw.bank.core.contracts.Ledger;
 import com.fabiogouw.bank.core.contracts.Ledger.EntryType;
 
-public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery {
+public class AccountActor extends AbstractActorWithStash { // AbstractPersistentActorWithAtLeastOnceDelivery {
 
     static class AccountMessage implements Serializable {
 
@@ -293,7 +294,7 @@ public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery
             _entriesInserted = 0;
         }
     }
-
+/*
 	@Override
 	public String persistenceId() {
 		return "account-persistence-id";
@@ -303,7 +304,7 @@ public class AccountActor extends AbstractPersistentActorWithAtLeastOnceDelivery
 	public Receive createReceiveRecover() {
 		return receiveBuilder().matchAny(any -> {}).build();
     }
-    
+*/ 
     public static ShardRegion.MessageExtractor shardExtractor() {
         return new PostShardMessageExtractor();
     }
