@@ -8,6 +8,10 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Cluster.Builder;
+import com.datastax.driver.core.querybuilder.Insert;
+import com.datastax.driver.core.querybuilder.QueryBuilder;
+import com.datastax.driver.core.querybuilder.Select;
+import com.datastax.driver.core.querybuilder.Update;
 import com.fabiogouw.bank.core.contracts.Ledger;
 
 import org.slf4j.LoggerFactory;
@@ -36,23 +40,16 @@ public class CassandraLedger implements Ledger {
     private String _password;
 
     public CompletableFuture<Void> insert(String accountId, Date entryDatetime, UUID entryId, double amount, UUID correlationId, String description, int entryType) {
-        StringBuilder sb = new StringBuilder("INSERT INTO account_entries ");
-        sb.append("(account_id, entry_datetime, entry_id, amount, correlation_id, description, entry_type) ")
-            .append("VALUES (")
-            .append("'").append(accountId).append("', ")
-            .append(entryDatetime.getTime()).append(", ")
-            .append(entryId).append(", ")
-            .append(amount).append(", ")
-            .append(correlationId).append(", ")
-            .append("'").append(description).append("', ")
-            .append(entryType)
-            .append(");");
+        Insert command = QueryBuilder.insertInto("account_entries");
+        command.values(new String[]{
+            "account_id", "entry_datetime", "entry_id", "amount", "correlation_id", "description", "entry_type"
+        }, new Object[]{
+            accountId, entryDatetime.getTime(), entryId, amount, correlationId, description, entryType
+        });
         connect();
         try {
-            String command = sb.toString();
-            
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                _log.info(command);
+                _log.info(command.toString());
                 _session.execute(command);
             });   
             return future;         
@@ -64,13 +61,12 @@ public class CassandraLedger implements Ledger {
 
     public CompletableFuture<Void> saveBalance(String accountId, Date snapshotDate, double balance) {
         connect();
-        StringBuilder sb = new StringBuilder("UPDATE balance_snapshots SET ");
-        sb.append("balance =").append(balance).append(", ")
-            .append("snapshot_date =").append(snapshotDate.getTime()).append(" ")
-            .append("WHERE account_id ='").append(accountId).append("' ");
-        String command = sb.toString();
+        Update command = QueryBuilder.update("balance_snapshots");
+        command.with(QueryBuilder.set(balance, balance));
+        command.where(QueryBuilder.eq("account_id", accountId))
+            .and(QueryBuilder.eq("snapshot_date", snapshotDate.getTime()));
         CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-            _log.info(command);
+            _log.info(command.toString());
             _session.execute(command);
         }); 
         return future;        
@@ -81,10 +77,11 @@ public class CassandraLedger implements Ledger {
             double balance = 0;
             Date snapshotDate = new Date();            
             connect();
-            StringBuilder sb = new StringBuilder("SELECT balance, snapshot_date FROM balance_snapshots WHERE ")
-            .append("account_id ='").append(accountId).append("' ");
-            String command = sb.toString();            
-            _log.info(command);
+            Select command = QueryBuilder.select(new String[]{
+                "balance", "snapshot_date"
+            }).from("balance_snapshots");
+            command.where(QueryBuilder.eq("account_id", accountId));
+            _log.info(command.toString());
             ResultSet rs = _session.execute(command);
             Row balanceSnapshotRow = rs.one();
             if(balanceSnapshotRow != null) {
@@ -99,12 +96,14 @@ public class CassandraLedger implements Ledger {
         return future.thenApply((balanceInfo) -> {
             connect();
             double balance = balanceInfo.getValue1();
-            StringBuilder sb = new StringBuilder("SELECT amount, entry_type FROM account_entries WHERE ");
-            sb.append("account_id ='").append(accountId).append("' ")
-                .append("AND entry_datetime > ").append(balanceInfo.getValue0().getTime()).append(" ")
-                .append("ORDER BY entry_datetime DESC;");
-            String command = sb.toString();
-            _log.info(command);
+
+            Select command = QueryBuilder.select(new String[]{
+                "amount", "entry_type"
+            }).from("account_entries");
+            command.where(QueryBuilder.eq("account_id", accountId))
+                .and(QueryBuilder.gt("entry_datetime", balanceInfo.getValue0().getTime()));
+            command.orderBy(QueryBuilder.desc("entry_datetime"));
+            _log.info(command.toString());
             ResultSet rs = _session.execute(command);
             List<Row> rows = rs.all();
             if(rows.size() > 0) {

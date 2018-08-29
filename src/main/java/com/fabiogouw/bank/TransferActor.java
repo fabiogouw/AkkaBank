@@ -1,18 +1,12 @@
 package com.fabiogouw.bank;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
+import akka.cluster.sharding.ClusterSharding;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import scala.Option;
-import akka.cluster.sharding.ClusterSharding;
 
 public class TransferActor extends AbstractActor {
 

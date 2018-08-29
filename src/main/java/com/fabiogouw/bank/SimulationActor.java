@@ -1,18 +1,13 @@
 package com.fabiogouw.bank;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
-import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import scala.Option;
 
 public class SimulationActor extends AbstractActor {
 

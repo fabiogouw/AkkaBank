@@ -1,16 +1,11 @@
 package com.fabiogouw.bank;
 
-import java.util.Random;
-
 import javax.annotation.PostConstruct;
 
 import com.fabiogouw.bank.core.contracts.Ledger;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 
 import org.springframework.stereotype.Component;
 
-import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.cluster.sharding.ClusterSharding;
 import akka.cluster.sharding.ClusterShardingSettings;

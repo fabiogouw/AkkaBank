@@ -53,9 +53,11 @@ public class AppConfig {
     @Bean
     public Ledger ledger() {
         if(_fakeLedger) {
+            System.out.println("Using a fake ledger...");
             return new FakeLedger();
         }
         else {
+            System.out.println("Using a Cassandra ledger...");
             return new CassandraLedger();
         }
     }    
