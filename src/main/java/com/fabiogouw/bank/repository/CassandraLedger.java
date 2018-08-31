@@ -62,7 +62,7 @@ public class CassandraLedger implements Ledger {
     public CompletableFuture<Void> saveBalance(String accountId, Date snapshotDate, double balance) {
         connect();
         Update command = QueryBuilder.update("balance_snapshots");
-        command.with(QueryBuilder.set(balance, balance));
+        command.with(QueryBuilder.set("balance", balance));
         command.where(QueryBuilder.eq("account_id", accountId))
             .and(QueryBuilder.eq("snapshot_date", snapshotDate.getTime()));
         CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
