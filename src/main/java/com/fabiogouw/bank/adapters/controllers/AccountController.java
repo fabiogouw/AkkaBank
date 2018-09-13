@@ -1,7 +1,12 @@
-package com.fabiogouw.bank;
+package com.fabiogouw.bank.adapters.controllers;
 
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
+
+import com.fabiogouw.bank.adapters.actors.AccountActor;
+import com.fabiogouw.bank.adapters.dtos.BalanceResponse;
+import com.fabiogouw.bank.adapters.dtos.OperationRequest;
+import com.fabiogouw.bank.adapters.dtos.OperationResponse;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

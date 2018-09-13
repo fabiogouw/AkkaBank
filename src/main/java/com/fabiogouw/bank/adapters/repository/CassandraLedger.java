@@ -1,4 +1,4 @@
-package com.fabiogouw.bank.repository;
+package com.fabiogouw.bank.adapters.repository;
 
 import java.util.Date;
 import java.util.List;
@@ -13,6 +13,7 @@ import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.core.querybuilder.Select;
 import com.datastax.driver.core.querybuilder.Update;
 import com.fabiogouw.bank.core.contracts.Ledger;
+import com.fabiogouw.bank.core.domain.Transaction;
 
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -109,12 +110,12 @@ public class CassandraLedger implements Ledger {
             if(rows.size() > 0) {
                 _log.info("Restoring balance for {}", accountId);
                 for(Row r:rows) {
-                    EntryType type = EntryType.from(r.getInt("entry_type"));
+                    Transaction.EntryType type = Transaction.EntryType.from(r.getInt("entry_type"));
                     double amount = r.getFloat("amount");
-                    if(type == EntryType.DEPOSIT) {
+                    if(type == Transaction.EntryType.DEPOSIT) {
                         balance += amount;
                     }
-                    if(type == EntryType.WITHDRAW) {
+                    if(type == Transaction.EntryType.WITHDRAW) {
                         balance -= amount;
                     } 
                 }

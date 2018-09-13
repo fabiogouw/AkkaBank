@@ -4,15 +4,39 @@ import java.util.Date;
 import java.util.UUID;
 
 public class Transaction {
+
+    public enum EntryType {
+        DEPOSIT(1),
+        WITHDRAW(2);
+
+        private final int _value;
+        private EntryType(int value) {
+            _value = value;
+        }
+
+        public int getValue() {
+            return _value;
+        }
+
+        public static EntryType from(int value) {
+            switch(value) {
+                case 1:
+                    return EntryType.DEPOSIT;
+                default:
+                    return EntryType.WITHDRAW;
+            }
+        }
+    }
+
     private String _accountId;
     private Date _entryDatetime;
     private UUID _entryId;
     private double _amount;
     private UUID _correlationId;
     private String _description;
-    private int _entryType;
+    private EntryType _entryType;
 
-    public Transaction(String accountId, Date entryDatetime, UUID entryId, double amount, UUID correlationId, String description, int entryType) {
+    public Transaction(String accountId, Date entryDatetime, UUID entryId, double amount, UUID correlationId, String description, EntryType entryType) {
         _accountId = accountId;
         _entryDatetime = entryDatetime;
         _entryId = entryId;
@@ -46,7 +70,7 @@ public class Transaction {
         return _description;
     }
 
-    public int getEntryType() {
+    public EntryType getEntryType() {
         return _entryType;
     }
 }

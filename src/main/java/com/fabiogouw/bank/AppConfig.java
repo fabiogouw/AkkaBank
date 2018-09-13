@@ -1,8 +1,8 @@
 package com.fabiogouw.bank;
 
 import com.fabiogouw.bank.core.contracts.Ledger;
-import com.fabiogouw.bank.repository.CassandraLedger;
-import com.fabiogouw.bank.repository.FakeLedger;
+import com.fabiogouw.bank.adapters.repository.CassandraLedger;
+import com.fabiogouw.bank.adapters.repository.FakeLedger;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 

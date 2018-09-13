@@ -1,4 +1,4 @@
-package com.fabiogouw.bank.repository;
+package com.fabiogouw.bank.adapters.repository;
 
 import java.util.Date;
 import java.util.Random;

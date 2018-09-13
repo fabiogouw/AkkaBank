@@ -1,4 +1,4 @@
-package com.fabiogouw.bank;
+package com.fabiogouw.bank.adapters.actors;
 
 import java.util.Random;
 import java.util.UUID;
@@ -11,7 +11,7 @@ import akka.event.LoggingAdapter;
 
 public class SimulationActor extends AbstractActor {
 
-    static class StartRequest {
+    public static class StartRequest {
         private int _maxIterations;
         public StartRequest(int maxIterations) {
             _maxIterations = maxIterations;
@@ -21,7 +21,7 @@ public class SimulationActor extends AbstractActor {
         }
     }
 
-    static Props props(String id) {
+    public static Props props(String id) {
         return Props.create(SimulationActor.class, id);
     }
 

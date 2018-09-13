@@ -1,4 +1,4 @@
-package com.fabiogouw.bank;
+package com.fabiogouw.bank.adapters.actors;
 
 import akka.actor.AbstractActor;
 import akka.actor.Props;

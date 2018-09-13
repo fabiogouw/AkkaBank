@@ -2,6 +2,7 @@ package com.fabiogouw.bank;
 
 import javax.annotation.PostConstruct;
 
+import com.fabiogouw.bank.adapters.actors.AccountActor;
 import com.fabiogouw.bank.core.contracts.Ledger;
 
 import org.springframework.stereotype.Component;

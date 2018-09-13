@@ -1,6 +1,8 @@
-package com.fabiogouw.bank;
+package com.fabiogouw.bank.adapters.controllers;
 
 import java.util.UUID;
+
+import com.fabiogouw.bank.adapters.actors.SimulationActor;
 
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;

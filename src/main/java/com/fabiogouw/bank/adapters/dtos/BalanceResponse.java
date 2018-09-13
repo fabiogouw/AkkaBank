@@ -1,4 +1,4 @@
-package com.fabiogouw.bank;
+package com.fabiogouw.bank.adapters.dtos;
 
 public class BalanceResponse {
     private String _accountId;

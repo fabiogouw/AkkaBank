@@ -1,4 +1,4 @@
-package com.fabiogouw.bank;
+package com.fabiogouw.bank.adapters.actors;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -16,7 +16,7 @@ import scala.Option;
 import java.util.concurrent.*;
 
 import com.fabiogouw.bank.core.contracts.Ledger;
-import com.fabiogouw.bank.core.contracts.Ledger.EntryType;
+import com.fabiogouw.bank.core.domain.Transaction.EntryType;
 
 public class AccountActor extends AbstractActorWithStash { // AbstractPersistentActorWithAtLeastOnceDelivery {
 
@@ -34,7 +34,7 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
         }
     }
 
-    static class BalanceRequest extends AccountMessage {
+    public static class BalanceRequest extends AccountMessage {
         private static final long serialVersionUID = -2216452416044790679L;
 
 		public BalanceRequest(String accountId) {
@@ -42,7 +42,7 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
         }
     }
 
-    static class BalanceResponse implements Serializable {
+    public static class BalanceResponse implements Serializable {
         private static final long serialVersionUID = 1302757287444314441L;
 		private final double _balance;
 
@@ -94,7 +94,7 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
         }
     }    
 
-    static class DepositRequest extends OperationRequest {
+    public static class DepositRequest extends OperationRequest {
         private static final long serialVersionUID = 3515932482649506598L;
 
 		public DepositRequest(String accountId, String correlationId, double amount) {
@@ -102,7 +102,7 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
         }
     }
 
-    static class DepositResponse extends OperationResponse {
+    public static class DepositResponse extends OperationResponse {
         private static final long serialVersionUID = -5136902613153736547L;
 
 		public DepositResponse(String correlationId, double currentBalance, Boolean success) {
@@ -110,7 +110,7 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
         }
     }
 
-    static class WithdrawRequest extends OperationRequest {
+    public static class WithdrawRequest extends OperationRequest {
         private static final long serialVersionUID = 3523795952970405852L;
 
 		public WithdrawRequest(String accountId, String correlationId, double amount) {
@@ -118,7 +118,7 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
         }
     }
 
-    static class WithdrawResponse extends OperationResponse {
+    public static class WithdrawResponse extends OperationResponse {
 		private static final long serialVersionUID = 7175374830232354388L;
 
 		public WithdrawResponse(String correlationId, double currentBalance, Boolean success) {
@@ -128,11 +128,11 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
 
     static class InternalOperationStateUpdate {
         private final String _correlationId;
-        private final Ledger.EntryType _entryType;
+        private final EntryType _entryType;
         private final double _amount;
         private final ActorRef _respondTo;
 
-        public InternalOperationStateUpdate(String correlationId, Ledger.EntryType entryType, double amount, ActorRef respondTo) {
+        public InternalOperationStateUpdate(String correlationId, EntryType entryType, double amount, ActorRef respondTo) {
             _correlationId = correlationId;
             _entryType = entryType;
             _amount = amount;
@@ -142,7 +142,7 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
         public String getCorrelationId() {
             return _correlationId;
         }        
-        public Ledger.EntryType getEntryType() {
+        public EntryType getEntryType() {
             return _entryType;
         }        
         public double getAmount() {
@@ -165,7 +165,7 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
         }
     }    
 
-    static Props props(double initialBalance, Ledger ledger) {
+    public static Props props(double initialBalance, Ledger ledger) {
         return Props.create(AccountActor.class, initialBalance, ledger);
     }
 
@@ -262,7 +262,7 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
             })
             .match(DepositRequest.class, req -> {
                 ActorRef respondTo = getSender();
-                CompletableFuture<Void> future = _ledger.insert(_id, new Date(), UUID.randomUUID(), req.getAmount(), UUID.fromString(req.getCorrelationId()), "deposit", Ledger.EntryType.DEPOSIT.getValue());
+                CompletableFuture<Void> future = _ledger.insert(_id, new Date(), UUID.randomUUID(), req.getAmount(), UUID.fromString(req.getCorrelationId()), "deposit", EntryType.DEPOSIT.getValue());
                 getContext().become(createUpdatingReceive());
                 future.thenAccept(r -> {
                     getSelf().tell(new InternalOperationStateUpdate(req.getCorrelationId(), EntryType.DEPOSIT, req.getAmount(), respondTo), getSelf());
@@ -271,7 +271,7 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
             .match(WithdrawRequest.class, req -> {
                 ActorRef respondTo = getSender();
                 if(_balance >= req.getAmount()) {
-                    CompletableFuture<Void> future = _ledger.insert(_id, new Date(), UUID.randomUUID(), req.getAmount(), UUID.fromString(req.getCorrelationId()), "withdraw", Ledger.EntryType.WITHDRAW.getValue());
+                    CompletableFuture<Void> future = _ledger.insert(_id, new Date(), UUID.randomUUID(), req.getAmount(), UUID.fromString(req.getCorrelationId()), "withdraw", EntryType.WITHDRAW.getValue());
                     getContext().become(createUpdatingReceive());
                     future.thenAccept(r -> {
                         getSelf().tell(new InternalOperationStateUpdate(req.getCorrelationId(), EntryType.WITHDRAW, -1 * req.getAmount(), respondTo), getSelf());
