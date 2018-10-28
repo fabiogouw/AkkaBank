@@ -1,8 +1,12 @@
 package com.fabiogouw.bank.adapters.actors;
 
 import java.io.Serializable;
-import java.util.Date;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+
+import com.fabiogouw.bank.core.contracts.AccountRepository;
+import com.fabiogouw.bank.core.domain.Account;
+import com.fabiogouw.bank.core.domain.Transaction.EntryType;
 
 import akka.actor.AbstractActorWithStash;
 import akka.actor.ActorRef;
@@ -10,16 +14,7 @@ import akka.actor.Props;
 import akka.cluster.sharding.ShardRegion;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import akka.persistence.AbstractPersistentActorWithAtLeastOnceDelivery;
 import scala.Option;
-
-import java.util.concurrent.*;
-
-import com.fabiogouw.bank.core.contracts.AccountRepository;
-import com.fabiogouw.bank.core.contracts.Ledger;
-import com.fabiogouw.bank.core.domain.Account;
-import com.fabiogouw.bank.core.domain.Transaction.EntryType;
-import com.fabiogouw.bank.core.domain.Transaction;
 
 public class AccountActor extends AbstractActorWithStash { // AbstractPersistentActorWithAtLeastOnceDelivery {
 
@@ -176,21 +171,13 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
     @Override
     public void preStart() throws Exception {
         super.preStart();
-        getContext().become(createInitializingReceive());
-        CompletableFuture<Account> future = _repository.getAccount(_account.getId());
-        future.thenAccept(account -> {
-            getSelf().tell(new InternalInitialization(account), getSelf());
-        });        
+        initializeAccountActor();       
     }
 
     @Override
     public void preRestart(Throwable reason, Option<Object> message) {
         super.preRestart(reason, message);
-        getContext().become(createInitializingReceive());
-        CompletableFuture<Account> future = _repository.getAccount(_account.getId());
-        future.thenAccept(account -> {
-            getSelf().tell(new InternalInitialization(account), getSelf());
-        });   
+        initializeAccountActor(); 
     }
 
     @Override
@@ -202,6 +189,14 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
     @Override
     public Receive createReceive() {
         return createRespondingReceive();
+    }
+
+    private void initializeAccountActor() {
+        getContext().become(createInitializingReceive());
+        CompletableFuture<Account> future = _repository.getAccount(_account.getId());
+        future.thenAccept(account -> {
+            getSelf().tell(new InternalInitialization(account), getSelf());
+        });           
     }
 
     private Receive createInitializingReceive() {
@@ -255,7 +250,6 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
                 CompletableFuture<Account> future = _repository.saveAccount(_account);
                 getContext().become(createUpdatingReceive());
                 future.thenAccept(savedAccount -> {
-                    _log.info("createRespondingReceive.saveAccount em " + savedAccount.getId());
                     getSelf().tell(new InternalOperationStateUpdate(savedAccount, respondTo), getSelf());
                 });
             })

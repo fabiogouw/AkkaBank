@@ -15,7 +15,6 @@ import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.core.querybuilder.Select;
 import com.datastax.driver.core.querybuilder.Update;
 import com.fabiogouw.bank.core.contracts.AccountRepository;
-import com.fabiogouw.bank.core.contracts.Ledger;
 import com.fabiogouw.bank.core.domain.Account;
 import com.fabiogouw.bank.core.domain.Transaction;
 
