@@ -1,3 +1,6 @@
+/n1data/
+/n2data/
+/n3data/
 /target/
 !.mvn/wrapper/maven-wrapper.jar
 
