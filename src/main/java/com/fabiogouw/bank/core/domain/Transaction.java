@@ -36,8 +36,7 @@ public class Transaction {
     private String _description;
     private EntryType _entryType;
 
-    public Transaction(String accountId, Date entryDatetime, UUID entryId, double amount, UUID correlationId, String description, EntryType entryType) {
-        _accountId = accountId;
+    public Transaction(Date entryDatetime, UUID entryId, double amount, UUID correlationId, String description, EntryType entryType) {
         _entryDatetime = entryDatetime;
         _entryId = entryId;
         _amount = amount;

@@ -15,8 +15,11 @@ import scala.Option;
 
 import java.util.concurrent.*;
 
+import com.fabiogouw.bank.core.contracts.AccountRepository;
 import com.fabiogouw.bank.core.contracts.Ledger;
+import com.fabiogouw.bank.core.domain.Account;
 import com.fabiogouw.bank.core.domain.Transaction.EntryType;
+import com.fabiogouw.bank.core.domain.Transaction;
 
 public class AccountActor extends AbstractActorWithStash { // AbstractPersistentActorWithAtLeastOnceDelivery {
 
@@ -127,26 +130,16 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
     }
 
     static class InternalOperationStateUpdate {
-        private final String _correlationId;
-        private final EntryType _entryType;
-        private final double _amount;
+        private final Account _account;
         private final ActorRef _respondTo;
 
-        public InternalOperationStateUpdate(String correlationId, EntryType entryType, double amount, ActorRef respondTo) {
-            _correlationId = correlationId;
-            _entryType = entryType;
-            _amount = amount;
+        public InternalOperationStateUpdate(Account account, ActorRef respondTo) {
+            _account = account;
             _respondTo = respondTo;
         }
-
-        public String getCorrelationId() {
-            return _correlationId;
-        }        
-        public EntryType getEntryType() {
-            return _entryType;
-        }        
-        public double getAmount() {
-            return _amount;
+       
+        public Account getAccount() {
+            return _account;
         }
         public ActorRef getRespondTo() {
             return _respondTo;
@@ -154,42 +147,39 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
     }
 
     static class InternalInitialization {
-        private final double _balance;
+        private final Account _account;
 
-        public InternalInitialization(double balance) {
-            _balance = balance;
+        public InternalInitialization(Account account) {
+            _account = account;
         }
        
-        public double getBalance() {
-            return _balance;
+        public Account getAccount() {
+            return _account;
         }
     }    
 
-    public static Props props(double initialBalance, Ledger ledger) {
-        return Props.create(AccountActor.class, initialBalance, ledger);
+    public static Props props(double initialBalance, AccountRepository repository) {
+        return Props.create(AccountActor.class, initialBalance, repository);
     }
 
     public static final String SHARD = "AccountActor";
     private final LoggingAdapter _log;
-    private final Ledger _ledger;
-    private String _id;
-    private double _balance;
-    private int _entriesInserted = 0;
+    private Account _account;
+    private final AccountRepository _repository;
 
-    public AccountActor(double initialBalance, Ledger ledger) {
-        _id = getSelf().path().name();
-        _balance = initialBalance;
-        _ledger = ledger;
+    public AccountActor(double initialBalance, AccountRepository repository) {
+        _account = new Account(getSelf().path().name(), initialBalance);
         _log = Logging.getLogger(getContext().getSystem(), this);
+        _repository = repository;
     }
 
     @Override
     public void preStart() throws Exception {
         super.preStart();
         getContext().become(createInitializingReceive());
-        CompletableFuture<Double> future =_ledger.getBalance(_id);
-        future.thenAccept(balance -> {
-            getSelf().tell(new InternalInitialization(balance), getSelf());
+        CompletableFuture<Account> future = _repository.getAccount(_account.getId());
+        future.thenAccept(account -> {
+            getSelf().tell(new InternalInitialization(account), getSelf());
         });        
     }
 
@@ -197,16 +187,15 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
     public void preRestart(Throwable reason, Option<Object> message) {
         super.preRestart(reason, message);
         getContext().become(createInitializingReceive());
-        CompletableFuture<Double> future =_ledger.getBalance(_id);
-        future.thenAccept(balance -> {
-            getSelf().tell(new InternalInitialization(balance), getSelf());
-        });
+        CompletableFuture<Account> future = _repository.getAccount(_account.getId());
+        future.thenAccept(account -> {
+            getSelf().tell(new InternalInitialization(account), getSelf());
+        });   
     }
 
     @Override
-    
     public void postStop() {
-        _ledger.saveBalance(_id, new Date(), _balance);
+        _repository.saveAccount(_account);
         super.postStop();
     }
 
@@ -218,7 +207,7 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
     private Receive createInitializingReceive() {
         return receiveBuilder()
             .match(InternalInitialization.class, init -> {
-                _balance = init.getBalance();
+                _account = init.getAccount();
                 getContext().unbecome();
                 unstashAll();
             })
@@ -235,15 +224,15 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
                 sendBalance(getSender());
             })        
             .match(InternalOperationStateUpdate.class, upd -> {
-                _entriesInserted += 1;
-                _balance = _balance + upd.getAmount();
-                saveBalanceIfNeeded();
+                _account = upd.getAccount();
                 OperationResponse response = null;
-                if(upd.getEntryType() == EntryType.DEPOSIT) {
-                    response = new DepositResponse(upd.getCorrelationId(), _balance, true);
+                EntryType lastTransactionEntryType = _account.getLastTransaction().getEntryType();
+                UUID lastTransactionCorrelationId = _account.getLastTransaction().getCorrelationId();
+                if(lastTransactionEntryType == EntryType.DEPOSIT) {
+                    response = new DepositResponse(lastTransactionCorrelationId.toString(), _account.getBalance(), true);
                 }
-                if(upd.getEntryType() == EntryType.WITHDRAW) {
-                    response = new WithdrawResponse(upd.getCorrelationId(), _balance, true);
+                if(lastTransactionEntryType == EntryType.WITHDRAW) {
+                    response = new WithdrawResponse(lastTransactionCorrelationId.toString(), _account.getBalance(), true);
                 }
                 upd.getRespondTo().tell(response, getSelf());
                 getContext().unbecome();
@@ -262,37 +251,33 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
             })
             .match(DepositRequest.class, req -> {
                 ActorRef respondTo = getSender();
-                CompletableFuture<Void> future = _ledger.insert(_id, new Date(), UUID.randomUUID(), req.getAmount(), UUID.fromString(req.getCorrelationId()), "deposit", EntryType.DEPOSIT.getValue());
+                _account.Deposit(UUID.fromString(req.getCorrelationId()), req.getAmount());
+                CompletableFuture<Account> future = _repository.saveAccount(_account);
                 getContext().become(createUpdatingReceive());
-                future.thenAccept(r -> {
-                    getSelf().tell(new InternalOperationStateUpdate(req.getCorrelationId(), EntryType.DEPOSIT, req.getAmount(), respondTo), getSelf());
+                future.thenAccept(savedAccount -> {
+                    _log.info("createRespondingReceive.saveAccount em " + savedAccount.getId());
+                    getSelf().tell(new InternalOperationStateUpdate(savedAccount, respondTo), getSelf());
                 });
             })
             .match(WithdrawRequest.class, req -> {
                 ActorRef respondTo = getSender();
-                if(_balance >= req.getAmount()) {
-                    CompletableFuture<Void> future = _ledger.insert(_id, new Date(), UUID.randomUUID(), req.getAmount(), UUID.fromString(req.getCorrelationId()), "withdraw", EntryType.WITHDRAW.getValue());
+                Boolean withdrawOk = _account.Withdraw(UUID.fromString(req.getCorrelationId()), req.getAmount());
+                if(withdrawOk) {
+                    CompletableFuture<Account> future = _repository.saveAccount(_account);
                     getContext().become(createUpdatingReceive());
-                    future.thenAccept(r -> {
-                        getSelf().tell(new InternalOperationStateUpdate(req.getCorrelationId(), EntryType.WITHDRAW, -1 * req.getAmount(), respondTo), getSelf());
+                    future.thenAccept(savedAccount -> {
+                        getSelf().tell(new InternalOperationStateUpdate(savedAccount, respondTo), getSelf());
                     });
                 }
                 else {
-                    respondTo.tell(new WithdrawResponse(req.getCorrelationId(), _balance, false), getSelf());
+                    respondTo.tell(new WithdrawResponse(req.getCorrelationId(), _account.getBalance(), false), getSelf());
                 }
             })        
             .build();
     }
 
     private void sendBalance(ActorRef respondTo) {
-        respondTo.tell(new BalanceResponse(_balance), getSelf());
-    }
-
-    private void saveBalanceIfNeeded() {
-        if(_entriesInserted > 5) {
-            _ledger.saveBalance(_id, new Date(), _balance);
-            _entriesInserted = 0;
-        }
+        respondTo.tell(new BalanceResponse(_account.getBalance()), getSelf());
     }
 /*
 	@Override

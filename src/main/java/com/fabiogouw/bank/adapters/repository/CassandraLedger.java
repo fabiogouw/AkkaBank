@@ -3,29 +3,30 @@ package com.fabiogouw.bank.adapters.repository;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.Cluster.Builder;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Cluster.Builder;
+import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.Insert;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.core.querybuilder.Select;
 import com.datastax.driver.core.querybuilder.Update;
+import com.fabiogouw.bank.core.contracts.AccountRepository;
 import com.fabiogouw.bank.core.contracts.Ledger;
+import com.fabiogouw.bank.core.domain.Account;
 import com.fabiogouw.bank.core.domain.Transaction;
 
+import org.javatuples.Pair;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.javatuples.Pair;
-import org.slf4j.Logger;
-import java.util.concurrent.*;
-
-import com.datastax.driver.core.Session;
 
 @Component
-public class CassandraLedger implements Ledger {
+public class CassandraLedger implements AccountRepository {
 
     private Cluster _cluster;
     private Session _session;
@@ -40,7 +41,7 @@ public class CassandraLedger implements Ledger {
     @Value("${cass.password}")
     private String _password;
 
-    public CompletableFuture<Void> insert(String accountId, Date entryDatetime, UUID entryId, double amount, UUID correlationId, String description, int entryType) {
+    private CompletableFuture<Void> insert(String accountId, Date entryDatetime, UUID entryId, double amount, UUID correlationId, String description, int entryType) {
         Insert command = QueryBuilder.insertInto("account_entries");
         command.values(new String[]{
             "account_id", "entry_datetime", "entry_id", "amount", "correlation_id", "description", "entry_type"
@@ -48,32 +49,28 @@ public class CassandraLedger implements Ledger {
             accountId, entryDatetime.getTime(), entryId, amount, correlationId, description, entryType
         });
         connect();
-        try {
-            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                _log.info(command.toString());
-                _session.execute(command);
-            });   
-            return future;         
-        }
-        finally {
-            //close();
-        }
+        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+            _log.info(command.toString());
+            _session.execute(command);
+        });   
+        return future;
     }
 
-    public CompletableFuture<Void> saveBalance(String accountId, Date snapshotDate, double balance) {
+    private CompletableFuture<Void> saveBalance(String accountId, Date snapshotDate, double balance) {
         connect();
         Update command = QueryBuilder.update("balance_snapshots");
         command.with(QueryBuilder.set("balance", balance));
+        command.with(QueryBuilder.set("snapshot_date", snapshotDate.getTime()));
         command.where(QueryBuilder.eq("account_id", accountId))
-            .and(QueryBuilder.eq("snapshot_date", snapshotDate.getTime()));
+            .and(QueryBuilder.lte("snapshot_date", snapshotDate.getTime()));
         CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
             _log.info(command.toString());
             _session.execute(command);
         }); 
         return future;        
-    }
+    }  
 
-    public CompletableFuture<Double> getBalance(String accountId) {
+    private CompletableFuture<Double> getBalance(String accountId) {
         CompletableFuture<Pair<Date, Double>> future = CompletableFuture.supplyAsync(() -> {
             double balance = 0;
             Date snapshotDate = new Date();            
@@ -143,4 +140,23 @@ public class CassandraLedger implements Ledger {
             _cluster.close();
         }
     }
+
+    @Override
+    public CompletableFuture<Account> getAccount(String accountId) {
+        CompletableFuture<Double> future = getBalance(accountId);
+        return future.thenApply(balance -> {
+            return new Account(accountId, balance);
+        });
+    }
+
+    @Override
+    public CompletableFuture<Account> saveAccount(Account account) {
+        Transaction lastTransaction = account.getLastTransaction();
+        CompletableFuture<Void> future = insert(account.getId(), lastTransaction.getEntryDatetime(), lastTransaction.getEntryId(), lastTransaction.getAmount(), lastTransaction.getCorrelationId(), lastTransaction.getDescription(), lastTransaction.getEntryType().getValue());       
+        return future.thenApply(fn -> {
+            return saveBalance(account.getId(), lastTransaction.getEntryDatetime(), account.getBalance());
+        }).thenApply(action -> {
+            return account;
+        });
+	}
 }

@@ -6,6 +6,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import com.fabiogouw.bank.core.contracts.Ledger;
+import com.fabiogouw.bank.core.domain.Account;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

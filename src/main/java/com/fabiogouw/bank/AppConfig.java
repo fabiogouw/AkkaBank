@@ -1,5 +1,6 @@
 package com.fabiogouw.bank;
 
+import com.fabiogouw.bank.core.contracts.AccountRepository;
 import com.fabiogouw.bank.core.contracts.Ledger;
 import com.fabiogouw.bank.adapters.repository.CassandraLedger;
 import com.fabiogouw.bank.adapters.repository.FakeLedger;
@@ -50,7 +51,7 @@ public class AppConfig {
         return ActorSystem.create("bank", config);
     }
 
-    @Bean
+    /*@Bean
     public Ledger ledger() {
         if(_fakeLedger) {
             System.out.println("Using a fake ledger...");
@@ -60,5 +61,11 @@ public class AppConfig {
             System.out.println("Using a Cassandra ledger...");
             return new CassandraLedger();
         }
-    }    
+    }*/
+
+    @Bean
+    public AccountRepository repository() {
+        System.out.println("Using a Cassandra ledger...");
+        return new CassandraLedger();
+    }
 }
