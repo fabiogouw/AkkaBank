@@ -1,9 +1,7 @@
 package com.fabiogouw.bank;
 
+import com.fabiogouw.bank.adapters.repository.CassandraRepository;
 import com.fabiogouw.bank.core.contracts.AccountRepository;
-import com.fabiogouw.bank.core.contracts.Ledger;
-import com.fabiogouw.bank.adapters.repository.CassandraLedger;
-import com.fabiogouw.bank.adapters.repository.FakeLedger;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -66,6 +64,6 @@ public class AppConfig {
     @Bean
     public AccountRepository repository() {
         System.out.println("Using a Cassandra ledger...");
-        return new CassandraLedger();
+        return new CassandraRepository();
     }
 }

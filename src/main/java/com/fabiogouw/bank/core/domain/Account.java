@@ -18,22 +18,31 @@ public class Account {
         _balance = initialBalance;
     }
 
+    public Account(String id, List<Transaction> transactions) {
+        _id = id;
+        _transactions = transactions;
+        if(_transactions.size() > 0) {
+            Transaction lastTransaction = _transactions.get(_transactions.size() - 1);
+            _balance = lastTransaction.getLastBalance() + lastTransaction.getAmount();
+        }
+    }    
+
     public String getId() {
         return _id;
     }
 
     public Boolean Withdraw(UUID correlationId, double amount) {
         if(_balance >= amount) {
-            _lastTransaction = new Transaction(new Date(), UUID.randomUUID(), -1 * amount, correlationId, "withdraw", EntryType.WITHDRAW);
+            _lastTransaction = new Transaction(_id, new Date(), UUID.randomUUID(), _balance, -1 * amount, correlationId, "withdraw", EntryType.WITHDRAW);
             _transactions.add(_lastTransaction);
-            _balance -= _lastTransaction.getAmount();
+            _balance += _lastTransaction.getAmount();
             return true;
         }
         return false;
     }
 
     public Boolean Deposit(UUID correlationId, double amount) {
-        _lastTransaction = new Transaction(new Date(), UUID.randomUUID(), amount, correlationId, "deposit", EntryType.DEPOSIT);
+        _lastTransaction = new Transaction(_id, new Date(), UUID.randomUUID(), _balance, amount, correlationId, "deposit", EntryType.DEPOSIT);
         _transactions.add(_lastTransaction);
         _balance += _lastTransaction.getAmount();
         return true;

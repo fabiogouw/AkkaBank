@@ -31,14 +31,17 @@ public class Transaction {
     private String _accountId;
     private Date _entryDatetime;
     private UUID _entryId;
+    private double _lastBalance;
     private double _amount;
     private UUID _correlationId;
     private String _description;
     private EntryType _entryType;
 
-    public Transaction(Date entryDatetime, UUID entryId, double amount, UUID correlationId, String description, EntryType entryType) {
+    public Transaction(String accountId, Date entryDatetime, UUID entryId, double lastBalance, double amount, UUID correlationId, String description, EntryType entryType) {
+        _accountId = accountId;
         _entryDatetime = entryDatetime;
         _entryId = entryId;
+        _lastBalance = lastBalance;
         _amount = amount;
         _correlationId = correlationId;
         _description = description;
@@ -55,6 +58,10 @@ public class Transaction {
 
     public UUID getEntryId() {
         return _entryId;
+    }
+
+    public double getLastBalance() {
+        return _lastBalance;
     }
 
     public double getAmount() {
