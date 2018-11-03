@@ -1,5 +1,10 @@
 package com.fabiogouw.bank.adapters.actors;
 
+import com.fabiogouw.bank.adapters.actors.messages.DepositRequest;
+import com.fabiogouw.bank.adapters.actors.messages.DepositResponse;
+import com.fabiogouw.bank.adapters.actors.messages.WithdrawRequest;
+import com.fabiogouw.bank.adapters.actors.messages.WithdrawResponse;
+
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.PoisonPill;
@@ -78,19 +83,19 @@ public class TransferActor extends AbstractActor {
             _log.info("Transfer for {}, {}, {}, {}", _correlationId, req.getAccountFrom(), req.getAccountTo(), _amount);
             ActorRef accountRegion = ClusterSharding.get(getContext().getSystem()).shardRegion(AccountActor.SHARD);
             getContext().become(receiveWithdrawing());
-            accountRegion.tell(new AccountActor.WithdrawRequest(_accountFrom, _correlationId, _amount), getSelf());
+            accountRegion.tell(new WithdrawRequest(_accountFrom, _correlationId, _amount), getSelf());
         })
         .build();
     }
 
     private Receive receiveWithdrawing() {
         return receiveBuilder()
-        .match(AccountActor.WithdrawResponse.class, res -> {
+        .match(WithdrawResponse.class, res -> {
             _log.info("Transfer withdraw for {} - {}", _correlationId, res.getSuccess());
             if(res.getSuccess()) {
                 ActorRef accountRegion = ClusterSharding.get(getContext().getSystem()).shardRegion(AccountActor.SHARD);
                 getContext().become(receiveDepositing());
-                accountRegion.tell(new AccountActor.DepositRequest(_accountTo, _correlationId, _amount), getSelf());
+                accountRegion.tell(new DepositRequest(_accountTo, _correlationId, _amount), getSelf());
             }
             else {
                 _originalSender.tell(new TransferResponse(_correlationId, false), getSelf());
@@ -102,7 +107,7 @@ public class TransferActor extends AbstractActor {
 
     private Receive receiveDepositing() {
         return receiveBuilder()
-        .match(AccountActor.DepositResponse.class, res -> {
+        .match(DepositResponse.class, res -> {
             _log.info("Transfer deposit for {} - {}", _correlationId, res.getSuccess());
             _originalSender.tell(new TransferResponse(_correlationId, res.getSuccess()), getSelf());
             getSelf().tell(PoisonPill.getInstance(), getSelf());

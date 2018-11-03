@@ -4,6 +4,16 @@ import java.io.Serializable;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+import com.fabiogouw.bank.adapters.actors.messages.AccountMessage;
+import com.fabiogouw.bank.adapters.actors.messages.BalanceRequest;
+import com.fabiogouw.bank.adapters.actors.messages.BalanceResponse;
+import com.fabiogouw.bank.adapters.actors.messages.DepositRequest;
+import com.fabiogouw.bank.adapters.actors.messages.DepositResponse;
+import com.fabiogouw.bank.adapters.actors.messages.InternalInitialization;
+import com.fabiogouw.bank.adapters.actors.messages.InternalOperationStateUpdate;
+import com.fabiogouw.bank.adapters.actors.messages.OperationResponse;
+import com.fabiogouw.bank.adapters.actors.messages.WithdrawRequest;
+import com.fabiogouw.bank.adapters.actors.messages.WithdrawResponse;
 import com.fabiogouw.bank.core.contracts.AccountRepository;
 import com.fabiogouw.bank.core.domain.Account;
 import com.fabiogouw.bank.core.domain.Transaction.EntryType;
@@ -17,141 +27,6 @@ import akka.event.LoggingAdapter;
 import scala.Option;
 
 public class AccountActor extends AbstractActorWithStash { // AbstractPersistentActorWithAtLeastOnceDelivery {
-
-    static class AccountMessage implements Serializable {
-
-        private static final long serialVersionUID = 4766278085642796988L;
-		private final String _accountId;
-        
-        public AccountMessage(String accountId) {
-            _accountId = accountId;
-        }
-    
-        public String getAccountId() {
-            return _accountId;
-        }
-    }
-
-    public static class BalanceRequest extends AccountMessage {
-        private static final long serialVersionUID = -2216452416044790679L;
-
-		public BalanceRequest(String accountId) {
-            super(accountId);
-        }
-    }
-
-    public static class BalanceResponse implements Serializable {
-        private static final long serialVersionUID = 1302757287444314441L;
-		private final double _balance;
-
-        public BalanceResponse(double balance) {
-            _balance = balance;
-        }
-        public double getBalance() {
-            return _balance;
-        }
-    }
-
-    static class OperationRequest extends AccountMessage {
-        private static final long serialVersionUID = -188612147356070992L;
-		private final String _correlationId;
-        private final double _amount;
-        
-        public OperationRequest(String accountId, String correlationId, double amount) {
-            super(accountId);
-            _correlationId = correlationId;
-            _amount = amount;
-        }
-        public String getCorrelationId() {
-            return _correlationId;
-        }
-        public double getAmount() {
-            return _amount;
-        }
-    }
-
-    static class OperationResponse implements Serializable {
-        private static final long serialVersionUID = -6747511039799099748L;
-		private final String _correlationId;
-        private final double _currentBalance;
-        private final Boolean _success;
-        public OperationResponse(String correlationId, double currentBalance, Boolean success) {
-            _correlationId = correlationId;
-            _currentBalance = currentBalance;
-            _success = success;
-        }
-
-        public String getCorrelationId() {
-            return _correlationId;
-        }
-        public double getCurrentBalance() {
-            return _currentBalance;
-        }        
-        public Boolean getSuccess() {
-            return _success;
-        }
-    }    
-
-    public static class DepositRequest extends OperationRequest {
-        private static final long serialVersionUID = 3515932482649506598L;
-
-		public DepositRequest(String accountId, String correlationId, double amount) {
-            super(accountId, correlationId, amount);
-        }
-    }
-
-    public static class DepositResponse extends OperationResponse {
-        private static final long serialVersionUID = -5136902613153736547L;
-
-		public DepositResponse(String correlationId, double currentBalance, Boolean success) {
-            super(correlationId, currentBalance, success);
-        }
-    }
-
-    public static class WithdrawRequest extends OperationRequest {
-        private static final long serialVersionUID = 3523795952970405852L;
-
-		public WithdrawRequest(String accountId, String correlationId, double amount) {
-            super(accountId, correlationId, amount);
-        }
-    }
-
-    public static class WithdrawResponse extends OperationResponse {
-		private static final long serialVersionUID = 7175374830232354388L;
-
-		public WithdrawResponse(String correlationId, double currentBalance, Boolean success) {
-            super(correlationId, currentBalance, success);
-        }
-    }
-
-    static class InternalOperationStateUpdate {
-        private final Account _account;
-        private final ActorRef _respondTo;
-
-        public InternalOperationStateUpdate(Account account, ActorRef respondTo) {
-            _account = account;
-            _respondTo = respondTo;
-        }
-       
-        public Account getAccount() {
-            return _account;
-        }
-        public ActorRef getRespondTo() {
-            return _respondTo;
-        }
-    }
-
-    static class InternalInitialization {
-        private final Account _account;
-
-        public InternalInitialization(Account account) {
-            _account = account;
-        }
-       
-        public Account getAccount() {
-            return _account;
-        }
-    }    
 
     public static Props props(double initialBalance, AccountRepository repository) {
         return Props.create(AccountActor.class, initialBalance, repository);

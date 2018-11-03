@@ -4,7 +4,12 @@ import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
 import com.fabiogouw.bank.adapters.actors.AccountActor;
-import com.fabiogouw.bank.adapters.dtos.BalanceResponse;
+import com.fabiogouw.bank.adapters.actors.messages.BalanceRequest;
+import com.fabiogouw.bank.adapters.actors.messages.DepositRequest;
+import com.fabiogouw.bank.adapters.actors.messages.DepositResponse;
+import com.fabiogouw.bank.adapters.actors.messages.WithdrawRequest;
+import com.fabiogouw.bank.adapters.actors.messages.WithdrawResponse;
+import com.fabiogouw.bank.adapters.dtos.AccountBalanceResponse;
 import com.fabiogouw.bank.adapters.dtos.OperationRequest;
 import com.fabiogouw.bank.adapters.dtos.OperationResponse;
 
@@ -38,13 +43,13 @@ public class AccountController {
     }
 
     @RequestMapping(value="{accountId}/balance", method = RequestMethod.GET)
-    public ResponseEntity<BalanceResponse> getBalance(@PathVariable String accountId) throws Exception {
+    public ResponseEntity<AccountBalanceResponse> getBalance(@PathVariable String accountId) throws Exception {
         ActorRef accountRegion = ClusterSharding.get(_system).shardRegion(AccountActor.SHARD);
         Timeout timeout = new Timeout(Duration.create(TIMEOUT_IN_SECONDS, "seconds"));
         try {
-            Future<Object> future = Patterns.ask(accountRegion, new AccountActor.BalanceRequest(accountId), timeout);
-            AccountActor.BalanceResponse result = (AccountActor.BalanceResponse) Await.result(future, timeout.duration());
-            return ResponseEntity.ok(new BalanceResponse(accountId, result.getBalance()));
+            Future<Object> future = Patterns.ask(accountRegion, new BalanceRequest(accountId), timeout);
+            AccountBalanceResponse result = (AccountBalanceResponse) Await.result(future, timeout.duration());
+            return ResponseEntity.ok(new AccountBalanceResponse(accountId, result.getBalance()));
         }
         catch(TimeoutException ex) {
             return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body(null);
@@ -59,8 +64,8 @@ public class AccountController {
         ActorRef accountRegion = ClusterSharding.get(_system).shardRegion(AccountActor.SHARD);
         Timeout timeout = new Timeout(Duration.create(TIMEOUT_IN_SECONDS, "seconds"));
         try {
-            Future<Object> future = Patterns.ask(accountRegion, new AccountActor.DepositRequest(accountId, operation.getCorrelationId(), operation.getAmount()), timeout);
-            AccountActor.DepositResponse result = (AccountActor.DepositResponse) Await.result(future, timeout.duration());
+            Future<Object> future = Patterns.ask(accountRegion, new DepositRequest(accountId, operation.getCorrelationId(), operation.getAmount()), timeout);
+            DepositResponse result = (DepositResponse) Await.result(future, timeout.duration());
             return ResponseEntity.ok(new OperationResponse(operation.getCorrelationId(), operation.getAmount(), result.getCurrentBalance(), result.getSuccess()));
         }
         catch(TimeoutException ex) {
@@ -76,8 +81,8 @@ public class AccountController {
         ActorRef accountRegion = ClusterSharding.get(_system).shardRegion(AccountActor.SHARD);
         Timeout timeout = new Timeout(Duration.create(TIMEOUT_IN_SECONDS, "seconds"));
         try {
-            Future<Object> future = Patterns.ask(accountRegion, new AccountActor.WithdrawRequest(accountId, operation.getCorrelationId(), operation.getAmount()), timeout);
-            AccountActor.WithdrawResponse result = (AccountActor.WithdrawResponse) Await.result(future, timeout.duration());
+            Future<Object> future = Patterns.ask(accountRegion, new WithdrawRequest(accountId, operation.getCorrelationId(), operation.getAmount()), timeout);
+            WithdrawResponse result = (WithdrawResponse) Await.result(future, timeout.duration());
             return ResponseEntity.ok(new OperationResponse(operation.getCorrelationId(), operation.getAmount(), result.getCurrentBalance(), result.getSuccess()));
         }
         catch(TimeoutException ex) {

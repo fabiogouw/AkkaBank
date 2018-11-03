@@ -1,14 +1,14 @@
 package com.fabiogouw.bank.adapters.dtos;
 
-public class BalanceResponse {
+public class AccountBalanceResponse {
     private String _accountId;
     private double _balance;
 
-    public BalanceResponse() {
+    public AccountBalanceResponse() {
 
     }
 
-    public BalanceResponse(String accountId, double balance) {
+    public AccountBalanceResponse(String accountId, double balance) {
         _accountId = accountId;
         _balance = balance;
     }
