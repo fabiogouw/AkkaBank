@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-@Component
 public class FakeRepository implements AccountRepository {
 
     private static final Logger _log = LoggerFactory.getLogger(FakeRepository.class);

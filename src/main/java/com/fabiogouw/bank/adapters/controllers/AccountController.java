@@ -4,11 +4,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
 import com.fabiogouw.bank.adapters.actors.AccountActor;
-import com.fabiogouw.bank.adapters.actors.messages.BalanceRequest;
-import com.fabiogouw.bank.adapters.actors.messages.DepositRequest;
-import com.fabiogouw.bank.adapters.actors.messages.DepositResponse;
-import com.fabiogouw.bank.adapters.actors.messages.WithdrawRequest;
-import com.fabiogouw.bank.adapters.actors.messages.WithdrawResponse;
+import com.fabiogouw.bank.adapters.actors.messages.*;
 import com.fabiogouw.bank.adapters.dtos.AccountBalanceResponse;
 import com.fabiogouw.bank.adapters.dtos.OperationRequest;
 import com.fabiogouw.bank.adapters.dtos.OperationResponse;
@@ -48,7 +44,7 @@ public class AccountController {
         Timeout timeout = new Timeout(Duration.create(TIMEOUT_IN_SECONDS, "seconds"));
         try {
             Future<Object> future = Patterns.ask(accountRegion, new BalanceRequest(accountId), timeout);
-            AccountBalanceResponse result = (AccountBalanceResponse) Await.result(future, timeout.duration());
+            BalanceResponse result = (BalanceResponse) Await.result(future, timeout.duration());
             return ResponseEntity.ok(new AccountBalanceResponse(accountId, result.getBalance()));
         }
         catch(TimeoutException ex) {

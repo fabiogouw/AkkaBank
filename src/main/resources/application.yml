@@ -1,0 +1,13 @@
+repository:
+  fake: false
+  cassandra:
+    contactPoint: 172.17.0.3
+    keyspace: ledger
+    username: cassandra
+    password: cassandra
+akka:
+  appName: bank
+  port: 2551
+  seed:
+    host: 127.0.1.1
+    port: 2551

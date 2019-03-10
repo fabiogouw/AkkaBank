@@ -23,33 +23,36 @@ import com.fabiogouw.bank.core.domain.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
-@Component
 public class CassandraRepository implements AccountRepository {
 
     private Cluster _cluster;
     private Session _session;
     private static final Logger _log = LoggerFactory.getLogger(CassandraRepository.class);
 
-    @Value("${cass.contactPoint}")
+    @Value("${repository.cassandra.contactPoint}")
     private String _contactPoint;
-    @Value("${cass.keyspace}")
+    @Value("${repository.cassandra.keyspace}")
     private String _keyspace;
-    @Value("${cass.username}")
+    @Value("${repository.cassandra.username}")
     private String _username;
-    @Value("${cass.password}")
+    @Value("${repository.cassandra.password}")
     private String _password;
 
     private void connect() {
-        if(_cluster == null || _cluster.isClosed()) {
-            Builder b = Cluster.builder().addContactPoint(_contactPoint)
-                .withQueryOptions(new QueryOptions().setConsistencyLevel(ConsistencyLevel.LOCAL_QUORUM))
-                .withCredentials(_username, _password);
-            _cluster = b.build();
+        try {
+            if(_cluster == null || _cluster.isClosed()) {
+                Builder b = Cluster.builder().addContactPoint(_contactPoint)
+                        .withQueryOptions(new QueryOptions().setConsistencyLevel(ConsistencyLevel.LOCAL_QUORUM))
+                        .withCredentials(_username, _password);
+                _cluster = b.build();
+            }
+            if(_session == null || _session.isClosed()) {
+                _session = _cluster.connect(_keyspace);
+            }
         }
-        if(_session == null || _session.isClosed()) {
-            _session = _cluster.connect(_keyspace);
+        catch(Exception ex) {
+            _log.error("Failed to connect on Cassandra: {}", ex.getMessage());
         }
     }
 
@@ -80,7 +83,7 @@ public class CassandraRepository implements AccountRepository {
             _log.info(command.toString());
             ResultSet rs = _session.execute(command);
             List<Row> rows = rs.all();
-            List<Transaction> transactions = new ArrayList<Transaction>();
+            List<Transaction> transactions = new ArrayList<>();
             if(rows.size() > 0) {
                 for(Row r:rows) {
                     Transaction.EntryType type = Transaction.EntryType.from(r.getInt("entry_type"));
@@ -95,9 +98,7 @@ public class CassandraRepository implements AccountRepository {
     @Override
     public CompletableFuture<Account> getAccount(String accountId) {
         CompletableFuture<List<Transaction>> future = getBalance(accountId, 5);
-        return future.thenApply(transactions -> {
-            return new Account(accountId, transactions);
-        });
+        return future.thenApply(transactions -> new Account(accountId, transactions));
     }
 
     @Override
@@ -105,9 +106,7 @@ public class CassandraRepository implements AccountRepository {
         Transaction lastTransaction = account.getLastTransaction();
         if(lastTransaction != null) {
             CompletableFuture<Void> future = insert(account.getId(), lastTransaction.getEntryDatetime(), lastTransaction.getEntryId(), lastTransaction.getLastBalance(), lastTransaction.getAmount(), lastTransaction.getCorrelationId(), lastTransaction.getDescription(), lastTransaction.getEntryType().getValue());       
-            return future.thenApply(action -> {
-                return account;
-            });
+            return future.thenApply(action -> account);
         }
         else {
             return CompletableFuture.supplyAsync(() -> account);

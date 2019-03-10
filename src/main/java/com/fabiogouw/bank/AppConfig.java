@@ -1,6 +1,7 @@
 package com.fabiogouw.bank;
 
 import com.fabiogouw.bank.adapters.repository.CassandraRepository;
+import com.fabiogouw.bank.adapters.repository.FakeRepository;
 import com.fabiogouw.bank.core.contracts.AccountRepository;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -14,14 +15,14 @@ import akka.actor.ActorSystem;
 
 @Configuration
 public class AppConfig {
-    @Value("${fakeLedger}")
+    @Value("${repository.fake}")
     private Boolean _fakeLedger;
 
-    @Value("${cass.contactPoint}")
-    private String _contactPoint;    
-    @Value("${cass.username}")
+    @Value("${repository.cassandra.contactPoint}")
+    private String _contactPoint;
+    @Value("${repository.cassandra.username}")
     private String _username;
-    @Value("${cass.password}")
+    @Value("${repository.cassandra.password}")
     private String _password;
 
     @Value("${akka.port}")
@@ -49,21 +50,15 @@ public class AppConfig {
         return ActorSystem.create("bank", config);
     }
 
-    /*@Bean
-    public Ledger ledger() {
+    @Bean
+    public AccountRepository ledger() {
         if(_fakeLedger) {
             System.out.println("Using a fake ledger...");
-            return new FakeLedger();
+            return new FakeRepository();
         }
         else {
             System.out.println("Using a Cassandra ledger...");
-            return new CassandraLedger();
+            return new CassandraRepository();
         }
-    }*/
-
-    @Bean
-    public AccountRepository repository() {
-        System.out.println("Using a Cassandra ledger...");
-        return new CassandraRepository();
     }
 }
