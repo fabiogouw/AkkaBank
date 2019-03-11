@@ -22,8 +22,8 @@ public class Account {
         _id = id;
         _transactions = transactions;
         if(_transactions.size() > 0) {
-            Transaction lastTransaction = _transactions.get(_transactions.size() - 1);
-            _balance = lastTransaction.getLastBalance() + lastTransaction.getAmount();
+            Transaction lastTransaction = _transactions.get(0);
+            _balance = lastTransaction.getLastBalance();
         }
     }    
 

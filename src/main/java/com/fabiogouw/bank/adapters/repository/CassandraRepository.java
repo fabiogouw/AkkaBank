@@ -13,9 +13,7 @@ import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
-import com.datastax.driver.core.querybuilder.Insert;
-import com.datastax.driver.core.querybuilder.QueryBuilder;
-import com.datastax.driver.core.querybuilder.Select;
+import com.datastax.driver.core.querybuilder.*;
 import com.fabiogouw.bank.core.contracts.AccountRepository;
 import com.fabiogouw.bank.core.domain.Account;
 import com.fabiogouw.bank.core.domain.Transaction;
@@ -57,17 +55,43 @@ public class CassandraRepository implements AccountRepository {
     }
 
     private CompletableFuture<Void> insert(String accountId, Date entryDatetime, UUID entryId, double lastBalance, double amount, UUID correlationId, String description, int entryType) {
-        Insert command = QueryBuilder.insertInto("account_entries").ifNotExists();
-        command.values(new String[]{
-            "account_id", "entry_datetime", "entry_id", "last_balance", "amount", "correlation_id", "description", "entry_type"
+        Batch batch = QueryBuilder.batch();
+        Insert insert = QueryBuilder.insertInto("account_entries");
+        insert.values(new String[]{
+            "account_id", "entry_datetime", "entry_id", "amount", "correlation_id", "description", "entry_type"
         }, new Object[]{
-            accountId, entryDatetime.getTime(), entryId, lastBalance, amount, correlationId, description, entryType
+            accountId, entryDatetime.getTime(), entryId, amount, correlationId, description, entryType
         });
+
+        Update update = QueryBuilder.update("account_entries");
+        update.where(QueryBuilder.eq("account_id", accountId))
+                .onlyIf(QueryBuilder.eq("current_balance", lastBalance))
+                .with(QueryBuilder.set("current_balance", lastBalance + amount));
+
+        batch.add(insert);
+        batch.add(update);
         connect();
         CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-            _log.info(command.toString());
-            _session.execute(command);
+            if(!_session.isClosed()) {
+                _log.debug(batch.toString());
+                _session.execute(batch);
+            }
         });   
+        return future;
+    }
+
+    private CompletableFuture<List<Transaction>> createNewAccount(String accountId) {
+        Insert command = QueryBuilder.insertInto("account_entries").ifNotExists();
+        command.values(new String[]{ "account_id", "current_balance" },
+                new Object[]{ accountId, 0});
+        connect();
+        CompletableFuture<List<Transaction>> future = CompletableFuture.supplyAsync(() -> {
+            if(!_session.isClosed()) {
+                _log.debug(command.toString());
+                _session.execute(command);
+            }
+            return new ArrayList<>();
+        });
         return future;
     }
 
@@ -75,19 +99,32 @@ public class CassandraRepository implements AccountRepository {
         CompletableFuture<List<Transaction>> future = CompletableFuture.supplyAsync(() -> {
             connect();
             Select command = QueryBuilder.select(new String[]{
-                "account_id", "entry_datetime", "entry_id", "last_balance", "amount", "correlation_id", "description", "entry_type"
+                    "account_id",
+                    "entry_datetime",
+                    "entry_id",
+                    "current_balance",
+                    "amount",
+                    "correlation_id",
+                    "description",
+                    "entry_type"
             }).from("account_entries");
             command.where(QueryBuilder.eq("account_id", accountId));
             command.orderBy(QueryBuilder.desc("entry_datetime"));
             command.limit(maxItens);
-            _log.info(command.toString());
+            _log.debug(command.toString());
             ResultSet rs = _session.execute(command);
             List<Row> rows = rs.all();
             List<Transaction> transactions = new ArrayList<>();
             if(rows.size() > 0) {
                 for(Row r:rows) {
                     Transaction.EntryType type = Transaction.EntryType.from(r.getInt("entry_type"));
-                    transactions.add(new Transaction(r.getString("account_id"), r.getTimestamp("entry_datetime"), r.getUUID("entry_id"), r.getFloat("last_balance"), r.getFloat("amount"), r.getUUID("correlation_id"), r.getString("description"), type));
+                    transactions.add(new Transaction(r.getString("account_id"),
+                            r.getTimestamp("entry_datetime"),
+                            r.getUUID("entry_id"),
+                            r.getFloat("current_balance"),
+                            r.getFloat("amount"),
+                            r.getUUID("correlation_id"),
+                            r.getString("description"), type));
                 }
             }
             return transactions;
@@ -98,7 +135,14 @@ public class CassandraRepository implements AccountRepository {
     @Override
     public CompletableFuture<Account> getAccount(String accountId) {
         CompletableFuture<List<Transaction>> future = getBalance(accountId, 5);
-        return future.thenApply(transactions -> new Account(accountId, transactions));
+        return future
+                .thenApply(transactions -> {
+                    if(transactions.size() <= 0) {
+                        return createNewAccount(accountId).join();
+                    }
+                    return transactions;
+                })
+                .thenApply(transactions -> new Account(accountId, transactions));
     }
 
     @Override
