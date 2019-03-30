@@ -3,8 +3,7 @@ package com.fabiogouw.bank;
 import javax.annotation.PostConstruct;
 
 import com.fabiogouw.bank.adapters.actors.AccountActor;
-import com.fabiogouw.bank.core.contracts.AccountRepository;
-import com.fabiogouw.bank.core.contracts.Ledger;
+import com.fabiogouw.bank.domain.ports.AccountRepository;
 
 import org.springframework.stereotype.Component;
 

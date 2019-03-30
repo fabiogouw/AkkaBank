@@ -15,9 +15,9 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.*;
-import com.fabiogouw.bank.core.contracts.AccountRepository;
-import com.fabiogouw.bank.core.domain.Account;
-import com.fabiogouw.bank.core.domain.Transaction;
+import com.fabiogouw.bank.domain.ports.AccountRepository;
+import com.fabiogouw.bank.domain.Account;
+import com.fabiogouw.bank.domain.Transaction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

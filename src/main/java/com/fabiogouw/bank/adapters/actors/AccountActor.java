@@ -1,6 +1,5 @@
 package com.fabiogouw.bank.adapters.actors;
 
-import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -15,9 +14,9 @@ import com.fabiogouw.bank.adapters.actors.messages.InternalOperationStateUpdate;
 import com.fabiogouw.bank.adapters.actors.messages.OperationResponse;
 import com.fabiogouw.bank.adapters.actors.messages.WithdrawRequest;
 import com.fabiogouw.bank.adapters.actors.messages.WithdrawResponse;
-import com.fabiogouw.bank.core.contracts.AccountRepository;
-import com.fabiogouw.bank.core.domain.Account;
-import com.fabiogouw.bank.core.domain.Transaction.EntryType;
+import com.fabiogouw.bank.domain.ports.AccountRepository;
+import com.fabiogouw.bank.domain.Account;
+import com.fabiogouw.bank.domain.Transaction.EntryType;
 
 import akka.actor.AbstractActorWithStash;
 import akka.actor.ActorRef;

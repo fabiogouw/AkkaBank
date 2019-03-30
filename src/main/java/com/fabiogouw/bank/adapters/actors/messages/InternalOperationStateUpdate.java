@@ -1,6 +1,6 @@
 package com.fabiogouw.bank.adapters.actors.messages;
 
-import com.fabiogouw.bank.core.domain.Account;
+import com.fabiogouw.bank.domain.Account;
 
 import akka.actor.ActorRef;
 

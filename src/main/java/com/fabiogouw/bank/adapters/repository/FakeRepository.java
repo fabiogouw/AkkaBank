@@ -4,12 +4,11 @@ import java.math.BigDecimal;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 
-import com.fabiogouw.bank.core.contracts.AccountRepository;
-import com.fabiogouw.bank.core.domain.Account;
+import com.fabiogouw.bank.domain.ports.AccountRepository;
+import com.fabiogouw.bank.domain.Account;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 public class FakeRepository implements AccountRepository {
 

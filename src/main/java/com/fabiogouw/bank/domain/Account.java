@@ -1,4 +1,4 @@
-package com.fabiogouw.bank.core.domain;
+package com.fabiogouw.bank.domain;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -6,7 +6,7 @@ import java.util.UUID;
 import java.util.ArrayList;
 import java.util.Date;
 
-import com.fabiogouw.bank.core.domain.Transaction.EntryType;
+import com.fabiogouw.bank.domain.Transaction.EntryType;
 
 public class Account {
     private final String _id;

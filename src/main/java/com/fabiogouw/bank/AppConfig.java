@@ -2,7 +2,7 @@ package com.fabiogouw.bank;
 
 import com.fabiogouw.bank.adapters.repository.CassandraRepository;
 import com.fabiogouw.bank.adapters.repository.FakeRepository;
-import com.fabiogouw.bank.core.contracts.AccountRepository;
+import com.fabiogouw.bank.domain.ports.AccountRepository;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 

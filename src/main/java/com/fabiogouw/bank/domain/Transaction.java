@@ -1,4 +1,4 @@
-package com.fabiogouw.bank.core.domain;
+package com.fabiogouw.bank.domain;
 
 import java.math.BigDecimal;
 import java.util.Date;
