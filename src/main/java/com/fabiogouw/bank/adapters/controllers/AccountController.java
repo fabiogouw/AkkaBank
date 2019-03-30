@@ -1,5 +1,6 @@
 package com.fabiogouw.bank.adapters.controllers;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
@@ -65,7 +66,7 @@ public class AccountController {
             return ResponseEntity.ok(new OperationResponse(operation.getCorrelationId(), operation.getAmount(), result.getCurrentBalance(), result.getSuccess()));
         }
         catch(TimeoutException ex) {
-            return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body(new OperationResponse(operation.getCorrelationId(), operation.getAmount(), 0, false));
+            return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body(new OperationResponse(operation.getCorrelationId(), operation.getAmount(), BigDecimal.valueOf(0l), false));
         }
     }
 
@@ -82,7 +83,7 @@ public class AccountController {
             return ResponseEntity.ok(new OperationResponse(operation.getCorrelationId(), operation.getAmount(), result.getCurrentBalance(), result.getSuccess()));
         }
         catch(TimeoutException ex) {
-            return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body(new OperationResponse(operation.getCorrelationId(), operation.getAmount(), 0, false));
+            return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body(new OperationResponse(operation.getCorrelationId(), operation.getAmount(), BigDecimal.valueOf(0l), false));
         }
     }  
 }

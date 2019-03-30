@@ -1,5 +1,6 @@
 package com.fabiogouw.bank.adapters.repository;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -54,7 +55,7 @@ public class CassandraRepository implements AccountRepository {
         }
     }
 
-    private CompletableFuture<Void> insert(String accountId, Date entryDatetime, UUID entryId, double lastBalance, double amount, UUID correlationId, String description, int entryType) {
+    private CompletableFuture<Void> insert(String accountId, Date entryDatetime, UUID entryId, BigDecimal lastBalance, BigDecimal amount, UUID correlationId, String description, int entryType) {
         Batch batch = QueryBuilder.batch();
         Insert insert = QueryBuilder.insertInto("account_entries");
         insert.values(new String[]{
@@ -66,18 +67,17 @@ public class CassandraRepository implements AccountRepository {
         Update update = QueryBuilder.update("account_entries");
         update.where(QueryBuilder.eq("account_id", accountId))
                 .onlyIf(QueryBuilder.eq("current_balance", lastBalance))
-                .with(QueryBuilder.set("current_balance", lastBalance + amount));
+                .with(QueryBuilder.set("current_balance", lastBalance.add(amount)));
 
         batch.add(insert);
         batch.add(update);
         connect();
-        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+        return CompletableFuture.runAsync(() -> {
             if(!_session.isClosed()) {
                 _log.debug(batch.toString());
                 _session.execute(batch);
             }
         });   
-        return future;
     }
 
     private CompletableFuture<List<Transaction>> createNewAccount(String accountId) {
@@ -85,20 +85,19 @@ public class CassandraRepository implements AccountRepository {
         command.values(new String[]{ "account_id", "current_balance" },
                 new Object[]{ accountId, 0});
         connect();
-        CompletableFuture<List<Transaction>> future = CompletableFuture.supplyAsync(() -> {
+        return CompletableFuture.supplyAsync(() -> {
             if(!_session.isClosed()) {
                 _log.debug(command.toString());
                 _session.execute(command);
             }
             return new ArrayList<>();
         });
-        return future;
     }
 
     private CompletableFuture<List<Transaction>> getBalance(String accountId, int maxItens) {
-        CompletableFuture<List<Transaction>> future = CompletableFuture.supplyAsync(() -> {
+        return CompletableFuture.supplyAsync(() -> {
             connect();
-            Select command = QueryBuilder.select(new String[]{
+            Select command = QueryBuilder.select(
                     "account_id",
                     "entry_datetime",
                     "entry_id",
@@ -107,7 +106,7 @@ public class CassandraRepository implements AccountRepository {
                     "correlation_id",
                     "description",
                     "entry_type"
-            }).from("account_entries");
+            ).from("account_entries");
             command.where(QueryBuilder.eq("account_id", accountId));
             command.orderBy(QueryBuilder.desc("entry_datetime"));
             command.limit(maxItens);
@@ -115,21 +114,20 @@ public class CassandraRepository implements AccountRepository {
             ResultSet rs = _session.execute(command);
             List<Row> rows = rs.all();
             List<Transaction> transactions = new ArrayList<>();
-            if(rows.size() > 0) {
+            if(!rows.isEmpty()) {
                 for(Row r:rows) {
                     Transaction.EntryType type = Transaction.EntryType.from(r.getInt("entry_type"));
                     transactions.add(new Transaction(r.getString("account_id"),
                             r.getTimestamp("entry_datetime"),
                             r.getUUID("entry_id"),
-                            r.getFloat("current_balance"),
-                            r.getFloat("amount"),
+                            r.getDecimal("current_balance"),
+                            r.getDecimal("amount"),
                             r.getUUID("correlation_id"),
                             r.getString("description"), type));
                 }
             }
             return transactions;
         });
-        return future;
     }
 
     @Override
@@ -137,7 +135,7 @@ public class CassandraRepository implements AccountRepository {
         CompletableFuture<List<Transaction>> future = getBalance(accountId, 5);
         return future
                 .thenApply(transactions -> {
-                    if(transactions.size() <= 0) {
+                    if(transactions.isEmpty()) {
                         return createNewAccount(accountId).join();
                     }
                     return transactions;

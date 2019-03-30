@@ -13,15 +13,17 @@ import akka.cluster.sharding.ClusterSharding;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 
+import java.math.BigDecimal;
+
 public class TransferActor extends AbstractActor {
 
     static class TransferRequest {
         private String _correlationId;
         private String _accountFrom;
         private String _accountTo;
-        private double _amount;
+        private BigDecimal _amount;
         
-        public TransferRequest(String correlationId, String accountFrom, String accountTo, double amount) {
+        public TransferRequest(String correlationId, String accountFrom, String accountTo, BigDecimal amount) {
             _correlationId = correlationId;
             _accountFrom = accountFrom;
             _accountTo = accountTo;
@@ -36,7 +38,7 @@ public class TransferActor extends AbstractActor {
         public String getAccountTo() {
             return _accountTo;
         }        
-        public double getAmount() {
+        public BigDecimal getAmount() {
             return _amount;
         }
     }
@@ -65,7 +67,7 @@ public class TransferActor extends AbstractActor {
     private String _correlationId;
     private String _accountFrom;
     private String _accountTo;
-    private double _amount;
+    private BigDecimal _amount;
     private ActorRef _originalSender;
 
     public TransferActor() {

@@ -1,6 +1,7 @@
 package com.fabiogouw.bank.adapters.actors;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -28,7 +29,7 @@ import scala.Option;
 
 public class AccountActor extends AbstractActorWithStash { // AbstractPersistentActorWithAtLeastOnceDelivery {
 
-    public static Props props(double initialBalance, AccountRepository repository) {
+    public static Props props(BigDecimal initialBalance, AccountRepository repository) {
         return Props.create(AccountActor.class, initialBalance, repository);
     }
 
@@ -37,7 +38,7 @@ public class AccountActor extends AbstractActorWithStash { // AbstractPersistent
     private Account _account;
     private final AccountRepository _repository;
 
-    public AccountActor(double initialBalance, AccountRepository repository) {
+    public AccountActor(BigDecimal initialBalance, AccountRepository repository) {
         _account = new Account(getSelf().path().name(), initialBalance);
         _log = Logging.getLogger(getContext().getSystem(), this);
         _repository = repository;

@@ -1,5 +1,6 @@
 package com.fabiogouw.bank.core.domain;
 
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.UUID;
 
@@ -31,13 +32,13 @@ public class Transaction {
     private String _accountId;
     private Date _entryDatetime;
     private UUID _entryId;
-    private double _lastBalance;
-    private double _amount;
+    private BigDecimal _lastBalance;
+    private BigDecimal _amount;
     private UUID _correlationId;
     private String _description;
     private EntryType _entryType;
 
-    public Transaction(String accountId, Date entryDatetime, UUID entryId, double lastBalance, double amount, UUID correlationId, String description, EntryType entryType) {
+    public Transaction(String accountId, Date entryDatetime, UUID entryId, BigDecimal lastBalance, BigDecimal amount, UUID correlationId, String description, EntryType entryType) {
         _accountId = accountId;
         _entryDatetime = entryDatetime;
         _entryId = entryId;
@@ -60,11 +61,11 @@ public class Transaction {
         return _entryId;
     }
 
-    public double getLastBalance() {
+    public BigDecimal getLastBalance() {
         return _lastBalance;
     }
 
-    public double getAmount() {
+    public BigDecimal getAmount() {
         return _amount;
     }
 

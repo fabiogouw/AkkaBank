@@ -1,5 +1,6 @@
 package com.fabiogouw.bank.adapters.repository;
 
+import java.math.BigDecimal;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 
@@ -18,7 +19,7 @@ public class FakeRepository implements AccountRepository {
     public CompletableFuture<Account> getAccount(String accountId) {
         _log.info("Getting random balance for '{}'...", accountId);
         Random rand = new Random();
-        return CompletableFuture.supplyAsync(() -> new Account(accountId, rand.nextDouble() * 1000));
+        return CompletableFuture.supplyAsync(() -> new Account(accountId, BigDecimal.valueOf(rand.nextDouble() * 1000)));
     }
 
     @Override

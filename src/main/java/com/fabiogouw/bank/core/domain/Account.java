@@ -1,5 +1,6 @@
 package com.fabiogouw.bank.core.domain;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
@@ -9,19 +10,20 @@ import com.fabiogouw.bank.core.domain.Transaction.EntryType;
 
 public class Account {
     private final String _id;
-    private double _balance;
-    private List<Transaction> _transactions = new ArrayList<>();
+    private BigDecimal _balance = BigDecimal.valueOf(0l);;
+    private final List<Transaction> _transactions = new ArrayList<>();
     private Transaction _lastTransaction;
 
-    public Account(String id, double initialBalance) {
+    public Account(String id, BigDecimal initialBalance) {
         _id = id;
         _balance = initialBalance;
     }
 
     public Account(String id, List<Transaction> transactions) {
         _id = id;
-        _transactions = transactions;
-        if(_transactions.size() > 0) {
+        _transactions.clear();
+        _transactions.addAll(transactions);
+        if(!_transactions.isEmpty()) {
             Transaction lastTransaction = _transactions.get(0);
             _balance = lastTransaction.getLastBalance();
         }
@@ -31,20 +33,20 @@ public class Account {
         return _id;
     }
 
-    public Boolean Withdraw(UUID correlationId, double amount) {
-        if(_balance >= amount) {
-            _lastTransaction = new Transaction(_id, new Date(), UUID.randomUUID(), _balance, -1 * amount, correlationId, "withdraw", EntryType.WITHDRAW);
+    public Boolean Withdraw(UUID correlationId, BigDecimal amount) {
+        if(_balance.compareTo(amount)  >= 0) {
+            _lastTransaction = new Transaction(_id, new Date(), UUID.randomUUID(), _balance,  amount.negate(), correlationId, "withdraw", EntryType.WITHDRAW);
             _transactions.add(_lastTransaction);
-            _balance += _lastTransaction.getAmount();
+            _balance = _balance.add(_lastTransaction.getAmount());
             return true;
         }
         return false;
     }
 
-    public Boolean Deposit(UUID correlationId, double amount) {
+    public Boolean Deposit(UUID correlationId, BigDecimal amount) {
         _lastTransaction = new Transaction(_id, new Date(), UUID.randomUUID(), _balance, amount, correlationId, "deposit", EntryType.DEPOSIT);
         _transactions.add(_lastTransaction);
-        _balance += _lastTransaction.getAmount();
+        _balance = _balance.add(_lastTransaction.getAmount());
         return true;
     }
 
@@ -52,7 +54,7 @@ public class Account {
         return _lastTransaction;
     }
 
-    public double getBalance() {
+    public BigDecimal getBalance() {
         return _balance;
     }
 }

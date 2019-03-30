@@ -12,6 +12,8 @@ import akka.actor.ActorSystem;
 import akka.cluster.sharding.ClusterSharding;
 import akka.cluster.sharding.ClusterShardingSettings;
 
+import java.math.BigDecimal;
+
 @Component
 public class AccountsInit {
     private final ActorSystem _system;
@@ -26,7 +28,7 @@ public class AccountsInit {
     public void init() {
         ClusterSharding.get(_system)
                        .start(AccountActor.SHARD,
-                                AccountActor.props(0, _repository),
+                                AccountActor.props(BigDecimal.valueOf(0l), _repository),
                                 ClusterShardingSettings.create(_system),
                                 AccountActor.shardExtractor()
                        );      

@@ -1,5 +1,6 @@
 package com.fabiogouw.bank.adapters.actors;
 
+import java.math.BigDecimal;
 import java.util.Random;
 import java.util.UUID;
 
@@ -44,7 +45,7 @@ public class SimulationActor extends AbstractActor {
                 ActorRef transferRef = getContext().actorOf(TransferActor.props());
                 String accountFrom = String.valueOf(rand.nextInt(TOTAL_ACCOUNTS) + 1);
                 String accountTo = String.valueOf(rand.nextInt(TOTAL_ACCOUNTS) + 1);
-                transferRef.tell(new TransferActor.TransferRequest(UUID.randomUUID().toString(), accountFrom, accountTo, Math.random() * 1000), getSelf());
+                transferRef.tell(new TransferActor.TransferRequest(UUID.randomUUID().toString(), accountFrom, accountTo, BigDecimal.valueOf(Math.random() * 1000)), getSelf());
             }
             if(req.getMaxIterations() > 0) {
                 getSelf().tell(new StartRequest(req.getMaxIterations() - 1), getSelf());

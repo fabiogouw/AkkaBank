@@ -1,19 +1,21 @@
 package com.fabiogouw.bank.adapters.dtos;
 
+import java.math.BigDecimal;
+
 public class OperationRequest {
     private String _correlationId;
-    private double _amount;
+    private BigDecimal _amount;
 
     public String getCorrelationId() {
         return _correlationId;
     }
-    public double getAmount() {
+    public BigDecimal getAmount() {
         return _amount;
     }
     public void setCorrelationId(String correlationId){
         _correlationId = correlationId;
     }
-    public void setAmount(double amount) {
+    public void setAmount(BigDecimal amount) {
         _amount = amount;
     }
 }
